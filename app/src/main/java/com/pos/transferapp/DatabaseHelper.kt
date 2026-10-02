@@ -1,11 +1,10 @@
-package com.pos.transferapp
+﻿package com.pos.transferapp
 
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-// تعريف هيكل بيانات الزبون
 data class Customer(val id: Int, val name: String)
 
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.db", null, 1) {
@@ -29,9 +28,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         return result != -1L
     }
 
-    // الدالة الجديدة لجلب كل الزبائن من قاعدة البيانات (الأحدث أولاً)
-    fun getAllCustomers(): ArrayList {
-        val list = ArrayList()
+    fun getAllCustomers(): ArrayList<Customer> {
+        val list = ArrayList<Customer>()
         val db = this.readableDatabase
         val cursor = db.rawQuery("SELECT * FROM Customers ORDER BY ID DESC", null)
         
