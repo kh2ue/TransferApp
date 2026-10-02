@@ -1,5 +1,4 @@
 ﻿package com.pos.transferapp
-
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
@@ -8,17 +7,13 @@ import android.database.sqlite.SQLiteOpenHelper
 data class Customer(val id: Int, val name: String, val phone: String)
 
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.db", null, 2) {
-
     override fun onCreate(db: SQLiteDatabase) {
-        val createTable = "CREATE TABLE Customers (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, Phone TEXT)"
-        db.execSQL(createTable)
+        db.execSQL("CREATE TABLE Customers (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, Phone TEXT)")
     }
-
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS Customers")
         onCreate(db)
     }
-
     fun addCustomer(name: String, phone: String): Boolean {
         val db = this.writableDatabase
         val values = ContentValues()
@@ -28,12 +23,10 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         db.close()
         return result != -1L
     }
-
     fun getAllCustomers(): ArrayList<Customer> {
         val list = ArrayList<Customer>()
         val db = this.readableDatabase
         val cursor = db.rawQuery("SELECT * FROM Customers ORDER BY ID DESC", null)
-        
         if (cursor.moveToFirst()) {
             do {
                 val id = cursor.getInt(cursor.getColumnIndexOrThrow("ID"))
