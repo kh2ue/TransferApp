@@ -35,7 +35,7 @@
         android:id="@+id/btn_save"
         android:layout_width="match_parent"
         android:layout_height="60dp"
-        android:text="أضاف، الزبون"
+        android:text="اضافة الزبون"
         android:textSize="18sp"
         android:textStyle="bold"
         android:backgroundTint="#27AE60" />
