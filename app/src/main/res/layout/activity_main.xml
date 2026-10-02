@@ -1,42 +1,92 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="24dp"
     android:layoutDirection="rtl"
-    android:background="#F4F6F9">
+    android:background="#F8F9FA">
 
-    <!-- عنوان الشاشة -->
-    <TextView
+    <!-- الهيدر البرتقالي -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="نظام الحوالات والديون"
-        android:textSize="26sp"
-        android:textStyle="bold"
-        android:textColor="#2C3E50"
-        android:gravity="center"
-        android:layout_marginTop="20dp"
-        android:layout_marginBottom="40dp"/>
+        android:background="#FF6B00"
+        android:padding="24dp"
+        android:orientation="vertical"
+        android:gravity="center">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="إدارة الحوالات والديون"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
 
-    <!-- خانه إدخال اسم الزبون -->
-    <EditText
-        android:id="@+id/input_name"
+    <!-- المحتوى الأساسي -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="55dp"
-        android:hint="أدخل اسم الزبون..."
-        android:padding="12dp"
-        android:background="#FFFFFF"
-        android:elevation="2dp"
-        android:layout_marginBottom="20dp"/>
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="24dp">
 
-    <!-- زر الحفظ -->
-    <Button
-        android:id="@+id/btn_save"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:text="اضافة الزبون"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:backgroundTint="#27AE60" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="إضافة زبون جديد"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#2C3E50"
+            android:layout_marginBottom="16dp"/>
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="15dp"
+            app:cardElevation="2dp"
+            android:layout_marginBottom="24dp"
+            app:cardBackgroundColor="#FFFFFF">
+            <EditText
+                android:id="@+id/input_name"
+                android:layout_width="match_parent"
+                android:layout_height="55dp"
+                android:background="@null"
+                android:hint="أدخل اسم الزبون هنا..."
+                android:paddingStart="20dp"
+                android:paddingEnd="20dp"
+                android:textSize="16sp"
+                android:textColor="#333333"
+                android:textColorHint="#A0A0A0" />
+        </androidx.cardview.widget.CardView>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_save"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="إضافة الزبون"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:cornerRadius="15dp"
+            app:backgroundTint="#FF6B00"
+            android:textColor="#FFFFFF" 
+            android:layout_marginBottom="24dp"/>
+
+        <!-- قائمة الزبائن -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="الزبائن المسجلين"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="#2C3E50"
+            android:layout_marginBottom="12dp"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_customers"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingBottom="20dp" />
+    </LinearLayout>
 </LinearLayout>
