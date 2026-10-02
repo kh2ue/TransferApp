@@ -26,6 +26,7 @@ class MainActivity : AppCompatActivity() {
     var customerList = ArrayList<Customer>()
     
     private val CALL_REQUEST_CODE = 123
+    private var pendingUssdCode = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,30 +35,45 @@ class MainActivity : AppCompatActivity() {
         dbHelper = DatabaseHelper(this)
 
         val inputName: EditText = findViewById(R.id.input_name)
+        val inputPhone: EditText = findViewById(R.id.input_phone)
         val btnSave: Button = findViewById(R.id.btn_save)
         val recyclerView: RecyclerView = findViewById(R.id.recycler_customers)
+        
+        // ربط أزرار الشريط السفلي
+        val navDebt: View = findViewById(R.id.nav_debt)
+        val navSettings: View = findViewById(R.id.nav_settings)
+
+        navDebt.setOnClickListener {
+            Toast.makeText(this, "شاشة الديون (قيد البرمجة للخطوة القادمة)", Toast.LENGTH_SHORT).show()
+        }
+
+        navSettings.setOnClickListener {
+            Toast.makeText(this, "شاشة الإعدادات لحفظ الرمز السري (قيد البرمجة)", Toast.LENGTH_SHORT).show()
+        }
 
         recyclerView.layoutManager = LinearLayoutManager(this)
         loadCustomers()
         
         adapter = CustomerAdapter(customerList) { selectedCustomer ->
-            showTestDialog(selectedCustomer)
+            showTransferDialog(selectedCustomer)
         }
         recyclerView.adapter = adapter
 
         btnSave.setOnClickListener {
             val name = inputName.text.toString().trim()
-            if (name.isNotEmpty()) {
-                if (dbHelper.addCustomer(name)) {
+            val phone = inputPhone.text.toString().trim()
+            if (name.isNotEmpty() && phone.isNotEmpty()) {
+                if (dbHelper.addCustomer(name, phone)) {
                     Toast.makeText(this, "تم إضافة الزبون بنجاح", Toast.LENGTH_SHORT).show()
                     inputName.text.clear()
+                    inputPhone.text.clear()
                     loadCustomers()
                     adapter.notifyDataSetChanged()
                 } else {
-                    Toast.makeText(this, "حدث خطأ أثناء الإضافة", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "حدث خطأ", Toast.LENGTH_SHORT).show()
                 }
             } else {
-                Toast.makeText(this, "الرجاء إدخال اسم الزبون", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "الرجاء إدخال الاسم والرقم", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -67,15 +83,33 @@ class MainActivity : AppCompatActivity() {
         customerList.addAll(dbHelper.getAllCustomers())
     }
 
-    private fun showTestDialog(customer: Customer) {
+    private fun showTransferDialog(customer: Customer) {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_transfer, null)
         val builder = AlertDialog.Builder(this)
-        builder.setTitle("تجربة الـ USSD")
-        builder.setMessage("هل تريد تنفيذ كود الاستعلام (*100#) كتجربة للزبون: ${customer.name}؟")
-        builder.setPositiveButton("تنفيذ") { _, _ ->
-            checkPermissionAndCall()
+        builder.setView(dialogView)
+        val dialog = builder.create()
+
+        val tvTitle: TextView = dialogView.findViewById(R.id.tv_dialog_title)
+        val inputAmount: EditText = dialogView.findViewById(R.id.input_amount)
+        val inputPin: EditText = dialogView.findViewById(R.id.input_pin)
+        val btnConfirm: Button = dialogView.findViewById(R.id.btn_confirm_transfer)
+
+        tvTitle.text = "تحويل لـ ${customer.name}"
+
+        btnConfirm.setOnClickListener {
+            val amount = inputAmount.text.toString().trim()
+            val pin = inputPin.text.toString().trim()
+
+            if (amount.isNotEmpty() && pin.isNotEmpty()) {
+                val ussd = "*150*\({customer.phone}*\)amount*$pin"
+                pendingUssdCode = ussd + Uri.encode("#")
+                dialog.dismiss()
+                checkPermissionAndCall()
+            } else {
+                Toast.makeText(this, "الرجاء إدخال المبلغ والرمز السري", Toast.LENGTH_SHORT).show()
+            }
         }
-        builder.setNegativeButton("إلغاء", null)
-        builder.show()
+        dialog.show()
     }
 
     private fun checkPermissionAndCall() {
@@ -87,10 +121,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun executeUSSD() {
-        val ussdCode = "*100" + Uri.encode("#")
-        val intent = Intent(Intent.ACTION_CALL)
-        intent.data = Uri.parse("tel:$ussdCode")
-        startActivity(intent)
+        if (pendingUssdCode.isNotEmpty()) {
+            val intent = Intent(Intent.ACTION_CALL)
+            intent.data = Uri.parse("tel:$pendingUssdCode")
+            startActivity(intent)
+            pendingUssdCode = ""
+        }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -99,7 +135,7 @@ class MainActivity : AppCompatActivity() {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 executeUSSD()
             } else {
-                Toast.makeText(this, "عذراً، التطبيق يحتاج صلاحية الاتصال", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "التطبيق يحتاج صلاحية الاتصال للتحويل", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -112,6 +148,7 @@ class CustomerAdapter(
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvName: TextView = view.findViewById(R.id.tv_customer_name)
+        val tvPhone: TextView = view.findViewById(R.id.tv_customer_phone)
         val tvInitial: TextView = view.findViewById(R.id.tv_initial)
     }
 
@@ -123,6 +160,7 @@ class CustomerAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val customer = customers[position]
         holder.tvName.text = customer.name
+        holder.tvPhone.text = customer.phone
         if (customer.name.isNotEmpty()) {
             holder.tvInitial.text = customer.name.take(1)
         }

@@ -5,12 +5,12 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-data class Customer(val id: Int, val name: String)
+data class Customer(val id: Int, val name: String, val phone: String)
 
-class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.db", null, 1) {
+class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.db", null, 2) {
 
     override fun onCreate(db: SQLiteDatabase) {
-        val createTable = "CREATE TABLE Customers (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT)"
+        val createTable = "CREATE TABLE Customers (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, Phone TEXT)"
         db.execSQL(createTable)
     }
 
@@ -19,10 +19,11 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         onCreate(db)
     }
 
-    fun addCustomer(name: String): Boolean {
+    fun addCustomer(name: String, phone: String): Boolean {
         val db = this.writableDatabase
         val values = ContentValues()
         values.put("Name", name)
+        values.put("Phone", phone)
         val result = db.insert("Customers", null, values)
         db.close()
         return result != -1L
@@ -37,7 +38,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
             do {
                 val id = cursor.getInt(cursor.getColumnIndexOrThrow("ID"))
                 val name = cursor.getString(cursor.getColumnIndexOrThrow("Name"))
-                list.add(Customer(id, name))
+                val phone = cursor.getString(cursor.getColumnIndexOrThrow("Phone"))
+                list.add(Customer(id, name, phone))
             } while (cursor.moveToNext())
         }
         cursor.close()

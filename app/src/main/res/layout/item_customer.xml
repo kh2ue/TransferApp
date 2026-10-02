@@ -17,7 +17,6 @@
         android:layoutDirection="rtl"
         android:gravity="center_vertical">
 
-        <!-- الدائرة البرتقالية كأيقونة -->
         <androidx.cardview.widget.CardView
             android:layout_width="40dp"
             android:layout_height="40dp"
@@ -35,16 +34,30 @@
                 android:gravity="center" />
         </androidx.cardview.widget.CardView>
 
-        <!-- اسم الزبون -->
-        <TextView
-            android:id="@+id/tv_customer_name"
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
-            android:text="اسم الزبون"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="#333333" />
+            android:orientation="vertical">
+            
+            <TextView
+                android:id="@+id/tv_customer_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="اسم الزبون"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#333333" />
+                
+            <TextView
+                android:id="@+id/tv_customer_phone"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0900000000"
+                android:textSize="14sp"
+                android:textColor="#777777"
+                android:layout_marginTop="4dp"/>
+        </LinearLayout>
     </LinearLayout>
 </androidx.cardview.widget.CardView>
