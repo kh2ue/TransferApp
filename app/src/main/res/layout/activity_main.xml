@@ -1,13 +1,12 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:app="http://schemas.android.com/apk/res/auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:layoutDirection="rtl"
     android:background="#F8F9FA">
 
-    <!-- الهيدر البرتقالي -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -18,13 +17,12 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="إدارة الحوالات والديون"
+            android:text="�جارة الحوالات والديون"
             android:textSize="22sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF" />
     </LinearLayout>
 
-    <!-- المحتوى الأساسي -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -34,7 +32,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="إضافة زبون جديد"
+            android:text="إٶافة زقون جديد"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#2C3E50"
@@ -52,7 +50,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="55dp"
                 android:background="@null"
-                android:hint="أدخل اسم الزبون هنا..."
+                android:hint="ãدخل اسم الزبون هنا..."
                 android:paddingStart="20dp"
                 android:paddingEnd="20dp"
                 android:textSize="16sp"
@@ -60,30 +58,28 @@
                 android:textColorHint="#A0A0A0" />
         </androidx.cardview.widget.CardView>
 
-        <com.google.android.material.button.MaterialButton
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_save"
             android:layout_width="match_parent"
             android:layout_height="60dp"
             android:text="إضافة الزبون"
             android:textSize="18sp"
             android:textStyle="bold"
-            app:cornerRadius="15dp"
-            app:backgroundTint="#FF6B00"
+            android:background="@drawable/bg_rounded_orange"
             android:textColor="#FFFFFF" 
             android:layout_marginBottom="24dp"/>
 
-        <!-- قائمة الزبائن -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="الزبائن المسجلين"
+            android:text="الزبائن المسجللۊن"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#2C3E50"
             android:layout_marginBottom="12dp"/>
 
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recycler_customers"
+            android:id="@*�d/recycler_customers"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
