@@ -1,4 +1,4 @@
-﻿package com.pos.transferapp
+package com.pos.transferapp
 
 import android.Manifest
 import android.content.Intent
@@ -20,11 +20,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 
 class MainActivity : AppCompatActivity() {
-    
+
     lateinit var dbHelper: DatabaseHelper
     lateinit var adapter: CustomerAdapter
     var customerList = ArrayList<Customer>()
-    
+
     private val CALL_REQUEST_CODE = 123
     private var pendingUssdCode = ""
 
@@ -34,26 +34,26 @@ class MainActivity : AppCompatActivity() {
 
         dbHelper = DatabaseHelper(this)
 
-        val inputName: EditText = findViewById(R.id.input_name)
-        val inputPhone: EditText = findViewById(R.id.input_phone)
-        val btnSave: Button = findViewById(R.id.btn_save)
-        val recyclerView: RecyclerView = findViewById(R.id.recycler_customers)
+        // استخدام Casting الصريح لتفادي أي أخطاء بالترجمة
+        val inputName = findViewById(R.id.input_name) as EditText
+        val inputPhone = findViewById(R.id.input_phone) as EditText
+        val btnSave = findViewById(R.id.btn_save) as Button
+        val recyclerView = findViewById(R.id.recycler_customers) as RecyclerView
         
-        // ربط أزرار الشريط السفلي
-        val navDebt: View = findViewById(R.id.nav_debt)
-        val navSettings: View = findViewById(R.id.nav_settings)
+        val navDebt = findViewById(R.id.nav_debt) as View
+        val navSettings = findViewById(R.id.nav_settings) as View
 
         navDebt.setOnClickListener {
             Toast.makeText(this, "شاشة الديون (قيد البرمجة للخطوة القادمة)", Toast.LENGTH_SHORT).show()
         }
 
         navSettings.setOnClickListener {
-            Toast.makeText(this, "شاشة الإعدادات لحفظ الرمز السري (قيد البرمجة)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "شاشة الإعدادات (قيد البرمجة)", Toast.LENGTH_SHORT).show()
         }
 
         recyclerView.layoutManager = LinearLayoutManager(this)
         loadCustomers()
-        
+
         adapter = CustomerAdapter(customerList) { selectedCustomer ->
             showTransferDialog(selectedCustomer)
         }
@@ -89,10 +89,10 @@ class MainActivity : AppCompatActivity() {
         builder.setView(dialogView)
         val dialog = builder.create()
 
-        val tvTitle: TextView = dialogView.findViewById(R.id.tv_dialog_title)
-        val inputAmount: EditText = dialogView.findViewById(R.id.input_amount)
-        val inputPin: EditText = dialogView.findViewById(R.id.input_pin)
-        val btnConfirm: Button = dialogView.findViewById(R.id.btn_confirm_transfer)
+        val tvTitle = dialogView.findViewById(R.id.tv_dialog_title) as TextView
+        val inputAmount = dialogView.findViewById(R.id.input_amount) as EditText
+        val inputPin = dialogView.findViewById(R.id.input_pin) as EditText
+        val btnConfirm = dialogView.findViewById(R.id.btn_confirm_transfer) as Button
 
         tvTitle.text = "تحويل لـ ${customer.name}"
 
@@ -101,12 +101,12 @@ class MainActivity : AppCompatActivity() {
             val pin = inputPin.text.toString().trim()
 
             if (amount.isNotEmpty() && pin.isNotEmpty()) {
-                val ussd = "*150*\({customer.phone}*\)amount*$pin"
+                val ussd = "*150*${customer.phone}*$amount*$pin"
                 pendingUssdCode = ussd + Uri.encode("#")
                 dialog.dismiss()
                 checkPermissionAndCall()
             } else {
-                Toast.makeText(this, "الرجاء إدخال المبلغ والرمز السري", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "الرجاء إدخال المبلغ والرمز", Toast.LENGTH_SHORT).show()
             }
         }
         dialog.show()
@@ -135,7 +135,7 @@ class MainActivity : AppCompatActivity() {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 executeUSSD()
             } else {
-                Toast.makeText(this, "التطبيق يحتاج صلاحية الاتصال للتحويل", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "يحتاج صلاحية الاتصال", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -147,9 +147,9 @@ class CustomerAdapter(
 ) : RecyclerView.Adapter<CustomerAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvName: TextView = view.findViewById(R.id.tv_customer_name)
-        val tvPhone: TextView = view.findViewById(R.id.tv_customer_phone)
-        val tvInitial: TextView = view.findViewById(R.id.tv_initial)
+        val tvName = view.findViewById(R.id.tv_customer_name) as TextView
+        val tvPhone = view.findViewById(R.id.tv_customer_phone) as TextView
+        val tvInitial = view.findViewById(R.id.tv_initial) as TextView
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {

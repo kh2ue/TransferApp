@@ -1,4 +1,5 @@
-﻿package com.pos.transferapp
+package com.pos.transferapp
+
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
