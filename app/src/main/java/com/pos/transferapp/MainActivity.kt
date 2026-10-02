@@ -18,9 +18,9 @@ class MainActivity : AppCompatActivity() {
         // تهيئة قاعدة البيانات
         dbHelper = DatabaseHelper(this)
 
-        // جلب العناصر من الواجهة (الخانة والزر)
-        val inputName = findViewById(R.id.input_name)
-        val btnSave = findViewById(R.id.btn_save)
+        // جلب العناصر باستخدام Casting لتفادي اختفاء الأقواس
+        val inputName = findViewById(R.id.input_name) as EditText
+        val btnSave = findViewById(R.id.btn_save) as Button
 
         // برمجة زر الإضافة
         btnSave.setOnClickListener {
