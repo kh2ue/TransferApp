@@ -115,9 +115,6 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
-// كلاس الزبون والمحول (Adapter) 
-data class Customer(val id: Int, val name: String)
-
 class CustomerAdapter(
     private val customers: List,
     private val onItemClick: (Customer) -> Unit
