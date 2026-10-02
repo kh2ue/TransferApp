@@ -1,6 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res/auto"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -17,7 +17,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="�جارة الحوالات والديون"
+            android:text="إدارة الحوالات والديون"
             android:textSize="22sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF" />
@@ -32,7 +32,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="إٶافة زقون جديد"
+            android:text="إضافة زبون جديد"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#2C3E50"
@@ -50,7 +50,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="55dp"
                 android:background="@null"
-                android:hint="ãدخل اسم الزبون هنا..."
+                android:hint="أدخل اسم الزبون هنا..."
                 android:paddingStart="20dp"
                 android:paddingEnd="20dp"
                 android:textSize="16sp"
@@ -72,14 +72,14 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="الزبائن المسجللۊن"
+            android:text="الزبائن المسجلين"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#2C3E50"
             android:layout_marginBottom="12dp"/>
 
         <androidx.recyclerview.widget.RecyclerView
-            android:id="@*�d/recycler_customers"
+            android:id="@+id/recycler_customers"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:clipToPadding="false"
