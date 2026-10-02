@@ -12,44 +12,36 @@
     </LinearLayout>
 
     <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
+        
+        <!-- 1. قسم التحويل (الرئيسية) -->
+        <LinearLayout android:id="@+id/layout_transfer" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="24dp" android:gravity="center">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="شاشة التحويل (قيد التصميم)" android:textSize="18sp" android:textColor="#888888"/>
+        </LinearLayout>
 
-        <!-- 1. قسم الرئيسية -->
-        <LinearLayout android:id="@+id/layout_home" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="24dp">
+        <!-- 2. قسم الزبائن -->
+        <LinearLayout android:id="@+id/layout_customers" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="24dp" android:visibility="gone">
             <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="15dp" app:cardElevation="2dp" android:layout_marginBottom="20dp" app:cardBackgroundColor="#FFFFFF">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                    <EditText android:id="@+id/input_name" android:layout_width="match_parent" android:layout_height="50dp" android:background="@null" android:hint="أدخل اسم الزبون..." android:paddingStart="20dp" android:paddingEnd="20dp" android:textSize="16sp" android:textColor="#333333" />
+                    <EditText android:id="@+id/input_cust_name" android:layout_width="match_parent" android:layout_height="50dp" android:background="@null" android:hint="اسم الزبون" android:paddingStart="20dp" android:paddingEnd="20dp" android:textSize="16sp" android:textColor="#333333" />
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#EEEEEE" />
-                    <EditText android:id="@+id/input_phone" android:layout_width="match_parent" android:layout_height="50dp" android:background="@null" android:inputType="phone" android:hint="رقم الموبايل" android:paddingStart="20dp" android:paddingEnd="20dp" android:textSize="16sp" android:textColor="#333333" />
+                    <EditText android:id="@+id/input_cust_syriatel" android:layout_width="match_parent" android:layout_height="50dp" android:background="@null" android:inputType="phone" android:hint="رقم سيريتل (اختياري)" android:paddingStart="20dp" android:paddingEnd="20dp" android:textSize="16sp" android:textColor="#D32F2F" />
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#EEEEEE" />
+                    <EditText android:id="@+id/input_cust_mtn" android:layout_width="match_parent" android:layout_height="50dp" android:background="@null" android:inputType="phone" android:hint="رقم MTN (اختياري)" android:paddingStart="20dp" android:paddingEnd="20dp" android:textSize="16sp" android:textColor="#FBC02D" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
-            <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_save" android:layout_width="match_parent" android:layout_height="55dp" android:text="إضافة الزبون" android:textSize="18sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" android:layout_marginBottom="20dp"/>
+            <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_save_customer" android:layout_width="match_parent" android:layout_height="55dp" android:text="حفظ الزبون" android:textSize="18sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" android:layout_marginBottom="20dp"/>
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="الزبائن المسجلين" android:textSize="18sp" android:textStyle="bold" android:textColor="#2C3E50" android:layout_marginBottom="12dp"/>
             <androidx.recyclerview.widget.RecyclerView android:id="@+id/recycler_customers" android:layout_width="match_parent" android:layout_height="match_parent" android:clipToPadding="false" android:paddingBottom="20dp" />
         </LinearLayout>
 
-        <!-- 2. قسم الديون -->
-        <LinearLayout android:id="@+id/layout_debt" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="24dp" android:visibility="gone">
-            <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="15dp" app:cardElevation="2dp" android:layout_marginBottom="16dp" app:cardBackgroundColor="#FFF0E6">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="20dp" android:orientation="vertical" android:gravity="center">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="إجمالي الديون بالسوق" android:textSize="16sp" android:textColor="#FF6B00"/>
-                    <TextView android:id="@+id/tv_total_debt" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 ل.س" android:textSize="28sp" android:textStyle="bold" android:textColor="#D32F2F" android:layout_marginTop="8dp"/>
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-            <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_show_add_debt" android:layout_width="match_parent" android:layout_height="55dp" android:text="إضافة دين جديد" android:textSize="18sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" android:layout_marginBottom="20dp"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="سجل الديون" android:textSize="18sp" android:textStyle="bold" android:textColor="#2C3E50" android:layout_marginBottom="12dp"/>
-            <androidx.recyclerview.widget.RecyclerView android:id="@+id/recycler_debts" android:layout_width="match_parent" android:layout_height="match_parent" android:clipToPadding="false" android:paddingBottom="20dp" />
+        <!-- 3. قسم الديون والدفعات -->
+        <LinearLayout android:id="@+id/layout_debt" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="24dp" android:visibility="gone" android:gravity="center">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="شاشة الحسابات والدفعات (قيد التصميم)" android:textSize="18sp" android:textColor="#888888"/>
         </LinearLayout>
 
-        <!-- 3. قسم الإعدادات -->
-        <LinearLayout android:id="@+id/layout_settings" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="24dp" android:visibility="gone">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="إعدادات التحويل" android:textSize="20sp" android:textStyle="bold" android:textColor="#2C3E50" android:layout_marginBottom="20dp"/>
-            <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="15dp" app:cardElevation="2dp" android:layout_marginBottom="24dp" app:cardBackgroundColor="#FFFFFF">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="الرمز السري الافتراضي للخط (PIN)" android:textSize="16sp" android:textStyle="bold" android:textColor="#333333" android:layout_marginBottom="12dp"/>
-                    <EditText android:id="@+id/input_settings_pin" android:layout_width="match_parent" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:inputType="numberPassword" android:hint="مثال: 0000" android:paddingStart="16dp" android:paddingEnd="16dp" android:textColor="#333333"/>
-                </LinearLayout>
-            </androidx.cardview.widget.CardView>
-            <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_save_settings" android:layout_width="match_parent" android:layout_height="55dp" android:text="حفظ الإعدادات" android:textSize="18sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" />
+        <!-- 4. قسم الإعدادات -->
+        <LinearLayout android:id="@+id/layout_settings" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="24dp" android:visibility="gone" android:gravity="center">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="شاشة الإعدادات (قيد التصميم)" android:textSize="18sp" android:textColor="#888888"/>
         </LinearLayout>
     </FrameLayout>
 
@@ -57,17 +49,21 @@
 
     <!-- شريط التنقل السفلي -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="65dp" android:orientation="horizontal" android:background="#FFFFFF" android:elevation="8dp">
-        <LinearLayout android:id="@+id/nav_home" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:background="?android:attr/selectableItemBackground" android:clickable="true">
-            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_home" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="الرئيسية" android:textSize="12sp" android:textStyle="bold" android:textColor="#FF6B00"/>
+        <LinearLayout android:id="@+id/nav_transfer" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:background="?android:attr/selectableItemBackground" android:clickable="true">
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_home" android:tint="#FF6B00"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="تحويل" android:textSize="12sp" android:textStyle="bold" android:textColor="#FF6B00"/>
+        </LinearLayout>
+        <LinearLayout android:id="@+id/nav_customers" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:background="?android:attr/selectableItemBackground" android:clickable="true">
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_customers" android:tint="#888888"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="الزبائن" android:textSize="12sp" android:textColor="#888888"/>
         </LinearLayout>
         <LinearLayout android:id="@+id/nav_debt" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:background="?android:attr/selectableItemBackground" android:clickable="true">
-            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_debt" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="الديون" android:textSize="12sp" android:textColor="#888888"/>
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_debt" android:tint="#888888"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="الحسابات" android:textSize="12sp" android:textColor="#888888"/>
         </LinearLayout>
         <LinearLayout android:id="@+id/nav_settings" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:background="?android:attr/selectableItemBackground" android:clickable="true">
-            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_settings" />
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="الإعدادات" android:textSize="12sp" android:textColor="#888888"/>
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_settings" android:tint="#888888"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="إعدادات" android:textSize="12sp" android:textColor="#888888"/>
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>
