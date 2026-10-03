@@ -19,6 +19,8 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
@@ -35,6 +37,12 @@ class MainActivity : AppCompatActivity() {
     private val CALL_REQUEST_CODE = 123
     private var pendingUssdCode = ""
     lateinit var tvTotalDebt: TextView
+
+    // دالة توليد الوقت الآلي
+    private fun getCurrentDateString(): String {
+        val sdf = SimpleDateFormat("yyyy/MM/dd hh:mm a", Locale.US)
+        return sdf.format(Date())
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -91,7 +99,7 @@ class MainActivity : AppCompatActivity() {
                 if (parts.size >= 2) currentQuickAmounts.add(Pair(parts[0].trim(), parts[1].trim()))
                 else if (parts.size == 1 && parts[0].trim().isNotEmpty()) currentQuickAmounts.add(Pair(parts[0].trim(), parts[0].trim()))
             }
-            val displayList = ArrayList<String>().apply { add("اختر الفئة (اختياري)...") }
+            val displayList = ArrayList<String>().apply { add("اختر الفئة...") } // تمت إزالة (اختياري)
             currentQuickAmounts.forEach { displayList.add("مبلغ: ${it.first} رصيد | التكلفة: ${it.second} ل.س") }
             spinnerQuickAmounts.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, displayList)
             inputTransferAmount.setText(""); inputTransferPrice.setText("")
@@ -119,14 +127,15 @@ class MainActivity : AppCompatActivity() {
             if (customer == null) { Toast.makeText(this, "اختر زبون مسجل", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
             val targetPhone = if (isSyr) customer.phoneSyriatel else customer.phoneMtn
             if (targetPhone.isEmpty()) { Toast.makeText(this, "لا يوجد رقم ${if (isSyr) "Syr" else "MTN"}", Toast.LENGTH_LONG).show(); return@setOnClickListener }
-            if (amount.isEmpty() || priceStr.isEmpty()) { Toast.makeText(this, "أدخل المبلغ والسعر", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+            if (amount.isEmpty() || priceStr.isEmpty()) { Toast.makeText(this, "أدخل الرصيد والسعر", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
 
             val price = priceStr.toIntOrNull() ?: 0
             val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
             val finalPin = prefs.getString("default_pin", "")?.takeIf { it.isNotEmpty() } ?: "0000"
             pendingUssdCode = "*150*$targetPhone*$amount*$finalPin" + Uri.encode("#")
             
-            dbHelper.addTransaction(selectedName, price, 1, "تحويل $amount رصيد (${if(isSyr) "Syr" else "MTN"})")
+            // إضافة التاريخ للتحويل
+            dbHelper.addTransaction(selectedName, price, 1, "تحويل $amount رصيد (${if(isSyr) "Syr" else "MTN"})", getCurrentDateString())
             loadAllData() 
             Toast.makeText(this, "تم قيد $price ل.س كدين", Toast.LENGTH_SHORT).show()
             checkPermissionAndCall()
@@ -183,7 +192,7 @@ class MainActivity : AppCompatActivity() {
             val name = inputTransCustomer.text.toString().trim()
             val amountStr = inputTransAmount.text.toString().trim()
             if (name.isNotEmpty() && amountStr.isNotEmpty()) {
-                if (dbHelper.addTransaction(name, amountStr.toIntOrNull() ?: 0, if (rbDebt.isChecked) 1 else 2, inputTransNote.text.toString().trim())) {
+                if (dbHelper.addTransaction(name, amountStr.toIntOrNull() ?: 0, if (rbDebt.isChecked) 1 else 2, inputTransNote.text.toString().trim(), getCurrentDateString())) {
                     inputTransCustomer.text.clear(); inputTransAmount.text.clear(); inputTransNote.text.clear(); loadAllData()
                 }
             } else { Toast.makeText(this, "أدخل الاسم والمبلغ", Toast.LENGTH_SHORT).show() }
@@ -218,7 +227,7 @@ class MainActivity : AppCompatActivity() {
         (view.findViewById(R.id.btn_update_cust) as Button).setOnClickListener {
             val n = inputName.text.toString().trim(); val s = inputSyr.text.toString().trim(); val m = inputMtn.text.toString().trim()
             if (n.isNotEmpty() && (s.isNotEmpty() || m.isNotEmpty())) {
-                if (dbHelper.updateCustomer(customer.id, customer.name, n, s, m)) { Toast.makeText(this, "تم التعديل بنجاح", Toast.LENGTH_SHORT).show(); loadAllData(); dialog.dismiss() }
+                if (dbHelper.updateCustomer(customer.id, customer.name, n, s, m)) { Toast.makeText(this, "تم التعديل", Toast.LENGTH_SHORT).show(); loadAllData(); dialog.dismiss() }
             } else { Toast.makeText(this, "البيانات غير مكتملة", Toast.LENGTH_SHORT).show() }
         }
         dialog.show()
@@ -237,7 +246,7 @@ class MainActivity : AppCompatActivity() {
         (view.findViewById(R.id.btn_update_trans) as Button).setOnClickListener {
             val a = inputAmount.text.toString().trim().toIntOrNull() ?: 0
             if (a > 0) {
-                if (dbHelper.updateTransaction(trans.id, a, if (rbDebt.isChecked) 1 else 2, inputNote.text.toString().trim())) { Toast.makeText(this, "تم التعديل بنجاح", Toast.LENGTH_SHORT).show(); loadAllData(); dialog.dismiss() }
+                if (dbHelper.updateTransaction(trans.id, a, if (rbDebt.isChecked) 1 else 2, inputNote.text.toString().trim())) { Toast.makeText(this, "تم التعديل", Toast.LENGTH_SHORT).show(); loadAllData(); dialog.dismiss() }
             } else { Toast.makeText(this, "أدخل مبلغ صحيح", Toast.LENGTH_SHORT).show() }
         }
         dialog.show()
@@ -296,6 +305,7 @@ class TransactionAdapter(private val transactions: List<Transaction>, private va
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvName = view.findViewById(R.id.tv_trans_name) as TextView
         val tvNote = view.findViewById(R.id.tv_trans_note) as TextView
+        val tvDate = view.findViewById(R.id.tv_trans_date) as TextView
         val tvAmount = view.findViewById(R.id.tv_trans_amount) as TextView
         val tvType = view.findViewById(R.id.tv_trans_type) as TextView
         val btnEdit = view.findViewById(R.id.btn_edit_trans) as ImageView
@@ -304,7 +314,9 @@ class TransactionAdapter(private val transactions: List<Transaction>, private va
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_transaction, parent, false))
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val trans = transactions[position]
-        holder.tvName.text = trans.customerName; holder.tvNote.text = trans.note
+        holder.tvName.text = trans.customerName
+        holder.tvNote.text = trans.note
+        holder.tvDate.text = trans.date
         holder.tvAmount.text = "${NumberFormat.getNumberInstance(Locale.US).format(trans.amount)}"
         if (trans.type == 1) { holder.tvType.text = "دين"; holder.tvType.setTextColor(Color.parseColor("#D32F2F")); holder.tvAmount.setTextColor(Color.parseColor("#D32F2F")) } 
         else { holder.tvType.text = "دفعة"; holder.tvType.setTextColor(Color.parseColor("#388E3C")); holder.tvAmount.setTextColor(Color.parseColor("#388E3C")) }

@@ -6,12 +6,12 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
 data class Customer(val id: Int, val name: String, val phoneSyriatel: String, val phoneMtn: String)
-data class Transaction(val id: Int, val customerName: String, val amount: Int, val type: Int, val note: String)
+data class Transaction(val id: Int, val customerName: String, val amount: Int, val type: Int, val note: String, val date: String)
 
-class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.db", null, 5) {
+class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.db", null, 6) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE Customers (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, PhoneSyriatel TEXT, PhoneMtn TEXT)")
-        db.execSQL("CREATE TABLE Transactions (ID INTEGER PRIMARY KEY AUTOINCREMENT, CustomerName TEXT, Amount INTEGER, Type INTEGER, Note TEXT)")
+        db.execSQL("CREATE TABLE Transactions (ID INTEGER PRIMARY KEY AUTOINCREMENT, CustomerName TEXT, Amount INTEGER, Type INTEGER, Note TEXT, Date TEXT)")
     }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS Customers")
@@ -27,7 +27,6 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         return result != -1L
     }
 
-    // دالة ذكية لتعديل الزبون واسمه القديم بكل الحركات
     fun updateCustomer(id: Int, oldName: String, newName: String, phoneSyriatel: String, phoneMtn: String): Boolean {
         val db = this.writableDatabase
         db.beginTransaction()
@@ -62,9 +61,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         return list
     }
 
-    fun addTransaction(customerName: String, amount: Int, type: Int, note: String): Boolean {
+    fun addTransaction(customerName: String, amount: Int, type: Int, note: String, date: String): Boolean {
         val db = this.writableDatabase
-        val values = ContentValues().apply { put("CustomerName", customerName); put("Amount", amount); put("Type", type); put("Note", note) }
+        val values = ContentValues().apply { put("CustomerName", customerName); put("Amount", amount); put("Type", type); put("Note", note); put("Date", date) }
         val result = db.insert("Transactions", null, values)
         db.close()
         return result != -1L
@@ -90,7 +89,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         val db = this.readableDatabase
         val cursor = db.rawQuery("SELECT * FROM Transactions ORDER BY ID DESC", null)
         if (cursor.moveToFirst()) {
-            do { list.add(Transaction(cursor.getInt(0), cursor.getString(1), cursor.getInt(2), cursor.getInt(3), cursor.getString(4))) } while (cursor.moveToNext())
+            do { list.add(Transaction(cursor.getInt(0), cursor.getString(1), cursor.getInt(2), cursor.getInt(3), cursor.getString(4), cursor.getString(5))) } while (cursor.moveToNext())
         }
         cursor.close(); db.close()
         return list

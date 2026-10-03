@@ -1,17 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:layoutDirection="rtl" android:background="#F8F9FA">
-
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="#FF6B00" android:padding="24dp" android:orientation="vertical" android:gravity="center">
         <TextView android:id="@+id/tv_main_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="التحويل السريع" android:textSize="22sp" android:textStyle="bold" android:textColor="#FFFFFF" />
     </LinearLayout>
-
     <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
         
         <!-- 1. قسم التحويل -->
         <LinearLayout android:id="@+id/layout_transfer" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="24dp">
             <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="15dp" app:cardElevation="2dp" android:layout_marginBottom="24dp" app:cardBackgroundColor="#FFFFFF">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
-                    
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="اختر الزبون" android:textSize="14sp" android:textStyle="bold" android:textColor="#888888" android:layout_marginBottom="8dp"/>
                     <AutoCompleteTextView android:id="@+id/input_transfer_customer" android:layout_width="match_parent" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:hint="بحث أو اختيار من القائمة..." android:paddingStart="16dp" android:paddingEnd="16dp" android:textSize="16sp" android:textColor="#333333" android:completionThreshold="1"/>
                     
@@ -25,10 +22,10 @@
                     <Spinner android:id="@+id/spinner_quick_amounts" android:layout_width="match_parent" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:layout_marginBottom="16dp" />
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-                        <EditText android:id="@+id/input_transfer_amount" android:layout_width="0dp" android:layout_weight="1" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:inputType="number" android:hint="المبلغ (رصيد)" android:paddingStart="16dp" android:paddingEnd="16dp" android:textSize="16sp" android:textColor="#333333" android:layout_marginEnd="8dp"/>
-                        <EditText android:id="@+id/input_transfer_price" android:layout_width="0dp" android:layout_weight="1" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:inputType="number" android:hint="السعر (الديون)" android:paddingStart="16dp" android:paddingEnd="16dp" android:textSize="16sp" android:textColor="#D32F2F" android:textStyle="bold"/>
+                        <!-- تم التعديل هنا: الرصيد والسعر فقط -->
+                        <EditText android:id="@+id/input_transfer_amount" android:layout_width="0dp" android:layout_weight="1" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:inputType="number" android:hint="الرصيد" android:paddingStart="16dp" android:paddingEnd="16dp" android:textSize="16sp" android:textColor="#333333" android:layout_marginEnd="8dp"/>
+                        <EditText android:id="@+id/input_transfer_price" android:layout_width="0dp" android:layout_weight="1" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:inputType="number" android:hint="السعر" android:paddingStart="16dp" android:paddingEnd="16dp" android:textSize="16sp" android:textColor="#D32F2F" android:textStyle="bold"/>
                     </LinearLayout>
-
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
             <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_execute_transfer" android:layout_width="match_parent" android:layout_height="60dp" android:text="إرسال الحوالة وتسجيل الدين" android:textSize="18sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" />
@@ -40,9 +37,11 @@
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                     <EditText android:id="@+id/input_cust_name" android:layout_width="match_parent" android:layout_height="50dp" android:background="@null" android:hint="اسم الزبون" android:paddingStart="20dp" android:paddingEnd="20dp" android:textSize="16sp" android:textColor="#333333" />
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#EEEEEE" />
-                    <EditText android:id="@+id/input_cust_syriatel" android:layout_width="match_parent" android:layout_height="50dp" android:background="@null" android:inputType="phone" android:hint="رقم Syr (اختياري)" android:paddingStart="20dp" android:paddingEnd="20dp" android:textSize="16sp" android:textColor="#D32F2F" />
+                    <!-- تم التعديل هنا: إزالة كلمة اختياري -->
+                    <EditText android:id="@+id/input_cust_syriatel" android:layout_width="match_parent" android:layout_height="50dp" android:background="@null" android:inputType="phone" android:hint="رقم Syr" android:paddingStart="20dp" android:paddingEnd="20dp" android:textSize="16sp" android:textColor="#D32F2F" />
                     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#EEEEEE" />
-                    <EditText android:id="@+id/input_cust_mtn" android:layout_width="match_parent" android:layout_height="50dp" android:background="@null" android:inputType="phone" android:hint="رقم MTN (اختياري)" android:paddingStart="20dp" android:paddingEnd="20dp" android:textSize="16sp" android:textColor="#FBC02D" />
+                    <!-- تم التعديل هنا: إزالة كلمة اختياري -->
+                    <EditText android:id="@+id/input_cust_mtn" android:layout_width="match_parent" android:layout_height="50dp" android:background="@null" android:inputType="phone" android:hint="رقم MTN" android:paddingStart="20dp" android:paddingEnd="20dp" android:textSize="16sp" android:textColor="#FBC02D" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
             <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_save_customer" android:layout_width="match_parent" android:layout_height="55dp" android:text="حفظ الزبون" android:textSize="18sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" android:layout_marginBottom="20dp"/>
@@ -82,26 +81,20 @@
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="إعدادات التحويل والفئات" android:textSize="20sp" android:textStyle="bold" android:textColor="#2C3E50" android:layout_marginBottom="20dp"/>
                 <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="15dp" app:cardElevation="2dp" android:layout_marginBottom="24dp" app:cardBackgroundColor="#FFFFFF">
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
-                        
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="الرمز السري الافتراضي للخط (PIN)" android:textSize="14sp" android:textStyle="bold" android:textColor="#888888" android:layout_marginBottom="8dp"/>
                         <EditText android:id="@+id/input_settings_pin" android:layout_width="match_parent" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:inputType="numberPassword" android:hint="مثال: 0000" android:paddingStart="16dp" android:paddingEnd="16dp" android:textColor="#333333" android:layout_marginBottom="20dp"/>
-
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="فئات Syr (المبلغ:السعر)" android:textSize="14sp" android:textStyle="bold" android:textColor="#888888" android:layout_marginBottom="8dp"/>
                         <EditText android:id="@+id/input_settings_syr_amounts" android:layout_width="match_parent" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:inputType="text" android:hint="مثال: 1000:1300, 2000:2600" android:paddingStart="16dp" android:paddingEnd="16dp" android:textColor="#333333" android:layout_marginBottom="20dp"/>
-
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="فئات MTN (المبلغ:السعر)" android:textSize="14sp" android:textStyle="bold" android:textColor="#888888" android:layout_marginBottom="8dp"/>
-                        <EditText android:id="@+id/input_settings_mtn_amounts" android:layout_width="match_parent" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:inputType="text" android:hint="مثال: 1000:1250, 1500:1900" android:paddingStart="16dp" android:paddingEnd="16dp" android:textColor="#333333"/>
-                        
+                        <EditText android:id="@+id/input_settings_mtn_amounts" android:layout_width="match_parent" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:inputType="text" android:hint="مثال: 1000:1250" android:paddingStart="16dp" android:paddingEnd="16dp" android:textColor="#333333"/>
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
                 <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_save_settings" android:layout_width="match_parent" android:layout_height="55dp" android:text="حفظ الإعدادات" android:textSize="18sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" />
             </LinearLayout>
         </ScrollView>
     </FrameLayout>
-
     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#E0E0E0" />
-    
-    <!-- شريط التنقل السفلي -->
+    <!-- شريط التنقل -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="65dp" android:orientation="horizontal" android:background="#FFFFFF" android:elevation="8dp">
         <LinearLayout android:id="@+id/nav_transfer" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:background="?android:attr/selectableItemBackground" android:clickable="true">
             <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_home" android:tint="#FF6B00"/>
