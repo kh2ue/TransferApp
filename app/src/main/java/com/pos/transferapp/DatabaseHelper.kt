@@ -24,15 +24,13 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
 
     // --- Customers ---
     fun addCustomer(name: String, phoneSyriatel: String, phoneMtn: String): Boolean {
-        val db = this.writableDatabase
-        val values = ContentValues().apply { put("Name", name); put("PhoneSyriatel", phoneSyriatel); put("PhoneMtn", phoneMtn) }
+        val db = this.writableDatabase`n        val cursor = db.rawQuery("SELECT ID FROM Customers WHERE Name=?", arrayOf(name))`n        if (cursor.count > 0) { cursor.close(); db.close(); return false }`n        cursor.close()`n        val values = ContentValues().apply { put("Name", name); put("PhoneSyriatel", phoneSyriatel); put("PhoneMtn", phoneMtn) }
         val result = db.insert("Customers", null, values)
         db.close(); return result != -1L
     }
     fun updateCustomer(id: Int, oldName: String, newName: String, phoneSyriatel: String, phoneMtn: String): Boolean {
         val db = this.writableDatabase; db.beginTransaction()
-        try {
-            val values = ContentValues().apply { put("Name", newName); put("PhoneSyriatel", phoneSyriatel); put("PhoneMtn", phoneMtn) }
+        try {`n            if (oldName != newName) {`n                val cursor = db.rawQuery("SELECT ID FROM Customers WHERE Name=?", arrayOf(newName))`n                if (cursor.count > 0) { cursor.close(); db.endTransaction(); db.close(); return false }`n                cursor.close()`n            }`n            val values = ContentValues().apply { put("Name", newName); put("PhoneSyriatel", phoneSyriatel); put("PhoneMtn", phoneMtn) }
             db.update("Customers", values, "ID=?", arrayOf(id.toString()))
             if (oldName != newName) {
                 db.update("Transactions", ContentValues().apply { put("CustomerName", newName) }, "CustomerName=?", arrayOf(oldName))
