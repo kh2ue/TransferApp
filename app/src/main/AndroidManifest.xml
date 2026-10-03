@@ -7,7 +7,7 @@
         android:allowBackup="true"
         android:icon="@mipmap/app_logo"
         android:label="Transfer App"
-        android:roundIcon="@mipmap/app_logo_round"
+        android:roundIcon="@mipmap/app_logo"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
         <activity android:name=".MainActivity" android:exported="true">
