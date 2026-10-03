@@ -28,8 +28,9 @@
             <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_execute_transfer" android:layout_width="match_parent" android:layout_height="60dp" android:text="تحويل الرصيد" android:textSize="18sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" />
         </LinearLayout>
 
-        <!-- الأقسام الأخرى بدون تغيير (مختصرة للتركيز على التحويل) -->
+        <!-- 2. قسم الزبائن -->
         <LinearLayout android:id="@+id/layout_customers" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="24dp" android:visibility="gone">
+            <EditText android:id="@+id/input_search_cust" android:layout_width="match_parent" android:layout_height="50dp" android:background="@drawable/bg_input_gray" android:hint="بحث عن زبون..." android:paddingStart="16dp" android:paddingEnd="16dp" android:textSize="16sp" android:textColor="#333333" android:layout_marginBottom="16dp"/>
             <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="15dp" app:cardElevation="2dp" android:layout_marginBottom="20dp" app:cardBackgroundColor="#FFFFFF">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                     <EditText android:id="@+id/input_cust_name" android:layout_width="match_parent" android:layout_height="50dp" android:background="@null" android:hint="اسم الزبون" android:paddingStart="20dp" android:paddingEnd="20dp" android:textSize="16sp" android:textColor="#333333" />
@@ -40,17 +41,34 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
             <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_save_customer" android:layout_width="match_parent" android:layout_height="55dp" android:text="حفظ الزبون" android:textSize="18sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" android:layout_marginBottom="20dp"/>
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="الزبائن المسجلين" android:textSize="18sp" android:textStyle="bold" android:textColor="#2C3E50" android:layout_marginBottom="12dp"/>
             <androidx.recyclerview.widget.RecyclerView android:id="@+id/recycler_customers" android:layout_width="match_parent" android:layout_height="match_parent" android:clipToPadding="false" android:paddingBottom="20dp" />
         </LinearLayout>
 
+        <!-- 3. قسم الديون والدفعات -->
         <LinearLayout android:id="@+id/layout_debt" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="24dp" android:visibility="gone">
-            <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="15dp" app:cardElevation="2dp" android:layout_marginBottom="20dp" app:cardBackgroundColor="#FFF0E6">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="20dp" android:orientation="vertical" android:gravity="center">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="صافي ديون السوق (لنا)" android:textSize="16sp" android:textColor="#FF6B00"/>
-                    <TextView android:id="@+id/tv_total_debt" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 ل.س" android:textSize="28sp" android:textStyle="bold" android:textColor="#D32F2F" android:layout_marginTop="8dp"/>
+            <!-- كرت التقرير اليومي -->
+            <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="15dp" app:cardElevation="2dp" android:layout_marginBottom="16dp" app:cardBackgroundColor="#E8F5E9">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="16dp" android:orientation="horizontal" android:weightSum="2">
+                    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ديون اليوم" android:textSize="14sp" android:textColor="#388E3C"/>
+                        <TextView android:id="@+id/tv_today_debt" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0" android:textSize="18sp" android:textStyle="bold" android:textColor="#D32F2F" android:layout_marginTop="4dp"/>
+                    </LinearLayout>
+                    <View android:layout_width="1dp" android:layout_height="match_parent" android:background="#C8E6C9" />
+                    <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="دفعات اليوم" android:textSize="14sp" android:textColor="#388E3C"/>
+                        <TextView android:id="@+id/tv_today_payment" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0" android:textSize="18sp" android:textStyle="bold" android:textColor="#388E3C" android:layout_marginTop="4dp"/>
+                    </LinearLayout>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
+
+            <!-- كرت الإجمالي الكلي -->
+            <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="15dp" app:cardElevation="2dp" android:layout_marginBottom="20dp" app:cardBackgroundColor="#FFF0E6">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="16dp" android:orientation="vertical" android:gravity="center">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="صافي ديون السوق الكلي (لنا)" android:textSize="14sp" android:textColor="#FF6B00"/>
+                    <TextView android:id="@+id/tv_total_debt" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 ل.س" android:textSize="22sp" android:textStyle="bold" android:textColor="#D32F2F" android:layout_marginTop="4dp"/>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
             <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="15dp" app:cardElevation="2dp" android:layout_marginBottom="20dp" app:cardBackgroundColor="#FFFFFF">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                     <AutoCompleteTextView android:id="@+id/input_trans_customer" android:layout_width="match_parent" android:layout_height="50dp" android:background="@drawable/bg_input_gray" android:hint="اختر الزبون..." android:paddingStart="16dp" android:paddingEnd="16dp" android:textSize="16sp" android:textColor="#333333" android:completionThreshold="1" android:layout_marginBottom="12dp"/>
@@ -65,10 +83,18 @@
                     <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_save_trans" android:layout_width="match_parent" android:layout_height="50dp" android:text="تسجيل الحركة" android:textSize="16sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" android:layout_marginTop="16dp"/>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="سجل الحركات" android:textSize="18sp" android:textStyle="bold" android:textColor="#2C3E50" android:layout_marginBottom="12dp"/>
+
+            <!-- شريط البحث وتاريخ الفلترة -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
+                <EditText android:id="@+id/input_search_trans" android:layout_width="0dp" android:layout_weight="1" android:layout_height="50dp" android:background="@drawable/bg_input_gray" android:hint="بحث بالاسم..." android:paddingStart="16dp" android:paddingEnd="16dp" android:textSize="14sp" android:textColor="#333333" android:layout_marginEnd="8dp"/>
+                <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_filter_date" android:layout_width="wrap_content" android:layout_height="50dp" android:text="التاريخ" android:textSize="14sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" android:paddingHorizontal="16dp"/>
+            </LinearLayout>
+            <TextView android:id="@+id/tv_active_date_filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="فلتر التاريخ: نشط" android:textSize="12sp" android:textColor="#FF6B00" android:layout_marginBottom="8dp" android:visibility="gone"/>
+            
             <androidx.recyclerview.widget.RecyclerView android:id="@+id/recycler_transactions" android:layout_width="match_parent" android:layout_height="match_parent" android:clipToPadding="false" android:paddingBottom="20dp" />
         </LinearLayout>
 
+        <!-- 4. قسم الإعدادات -->
         <ScrollView android:id="@+id/layout_settings" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="24dp">
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="إعدادات التحويل والفئات" android:textSize="20sp" android:textStyle="bold" android:textColor="#2C3E50" android:layout_marginBottom="20dp"/>
