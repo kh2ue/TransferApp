@@ -182,7 +182,7 @@ class MainActivity : AppCompatActivity() {
 
         btnShowPending.setOnClickListener { showPendingDialog() }
 
-        // ================= 2. الزبائن =================
+        // ================= 2. الزبائن (أيقونة البحث المخفية) =================
         val recyclerCustomers = findViewById(R.id.recycler_customers) as RecyclerView
         recyclerCustomers.layoutManager = LinearLayoutManager(this)
         customerAdapter = CustomerAdapter(customerList, dbHelper, onEdit = { cust -> showEditCustomerDialog(cust) }, onDelete = { cust ->
@@ -191,6 +191,11 @@ class MainActivity : AppCompatActivity() {
         recyclerCustomers.adapter = customerAdapter
 
         val inputSearchCust = findViewById(R.id.input_search_cust) as EditText
+        val btnToggleSearchCust = findViewById(R.id.btn_toggle_search_cust) as ImageView
+        btnToggleSearchCust.setOnClickListener {
+            inputSearchCust.visibility = if (inputSearchCust.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        }
+
         inputSearchCust.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 val q = s.toString().lowercase()
@@ -208,18 +213,38 @@ class MainActivity : AppCompatActivity() {
             if (name.isNotEmpty() && (syriatel.isNotEmpty() || mtn.isNotEmpty())) {
                 if (dbHelper.addCustomer(name, syriatel, mtn)) {
                     (findViewById(R.id.input_cust_name) as EditText).text.clear(); (findViewById(R.id.input_cust_syriatel) as EditText).text.clear(); (findViewById(R.id.input_cust_mtn) as EditText).text.clear()
-                    loadAllData(); inputSearchCust.setText("")
+                    loadAllData()
                 }
             } else { Toast.makeText(this, "أدخل الاسم ورقم", Toast.LENGTH_SHORT).show() }
         }
 
-        // ================= 3. الحسابات =================
+        // ================= 3. الحسابات (إخفاء الأقسام وإظهارها بالأزرار) =================
+        val btnToggleSummary = findViewById(R.id.btn_toggle_summary) as Button
+        val layoutSummaryCards = findViewById(R.id.layout_summary_cards) as View
+        btnToggleSummary.setOnClickListener {
+            val isVisible = layoutSummaryCards.visibility == View.VISIBLE
+            layoutSummaryCards.visibility = if (isVisible) View.GONE else View.VISIBLE
+            btnToggleSummary.text = if (isVisible) "ملخص الحسابات ▼" else "ملخص الحسابات ▲"
+        }
+
+        val btnToggleRecords = findViewById(R.id.btn_toggle_records) as Button
+        val recyclerTransactions = findViewById(R.id.recycler_transactions) as RecyclerView
+        btnToggleRecords.setOnClickListener {
+            val isVisible = recyclerTransactions.visibility == View.VISIBLE
+            recyclerTransactions.visibility = if (isVisible) View.GONE else View.VISIBLE
+            btnToggleRecords.text = if (isVisible) "السجلات ▼" else "السجلات ▲"
+        }
+
+        val btnToggleSearchTrans = findViewById(R.id.btn_toggle_search_trans) as ImageView
+        val layoutSearchTrans = findViewById(R.id.layout_search_trans) as View
+        btnToggleSearchTrans.setOnClickListener {
+            layoutSearchTrans.visibility = if (layoutSearchTrans.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        }
+
         val inputTransCustomer = findViewById(R.id.input_trans_customer) as AutoCompleteTextView
-        val rbDebt = findViewById(R.id.rb_debt) as RadioButton
         val inputTransAmount = findViewById(R.id.input_trans_amount) as EditText
         val inputTransNote = findViewById(R.id.input_trans_note) as EditText
         val btnSaveTrans = findViewById(R.id.btn_save_trans) as Button
-        val recyclerTransactions = findViewById(R.id.recycler_transactions) as RecyclerView
 
         inputTransCustomer.setOnTouchListener { _, _ -> inputTransCustomer.showDropDown(); false }
         
@@ -233,8 +258,10 @@ class MainActivity : AppCompatActivity() {
             val name = inputTransCustomer.text.toString().trim()
             val amountStr = inputTransAmount.text.toString().trim()
             if (name.isNotEmpty() && amountStr.isNotEmpty()) {
-                if (dbHelper.addTransaction(name, amountStr.toIntOrNull() ?: 0, if (rbDebt.isChecked) 1 else 2, inputTransNote.text.toString().trim(), getCurrentDateString())) {
+                // تسجيل الدفعة فقط (النوع 2) بناءً على طلبك
+                if (dbHelper.addTransaction(name, amountStr.toIntOrNull() ?: 0, 2, inputTransNote.text.toString().trim(), getCurrentDateString())) {
                     inputTransCustomer.text.clear(); inputTransAmount.text.clear(); inputTransNote.text.clear(); loadAllData()
+                    Toast.makeText(this, "تم تسجيل الدفعة بنجاح", Toast.LENGTH_SHORT).show()
                 }
             } else { Toast.makeText(this, "أدخل الاسم والمبلغ", Toast.LENGTH_SHORT).show() }
         }
@@ -247,7 +274,6 @@ class MainActivity : AppCompatActivity() {
             var filtered = transactionList.toList()
             val q = inputSearchTrans.text.toString().lowercase()
             if (q.isNotEmpty()) filtered = filtered.filter { it.customerName.lowercase().contains(q) }
-            
             if (filterFromDate.isNotEmpty()) filtered = filtered.filter { it.date.substring(0, 10) >= filterFromDate }
             if (filterToDate.isNotEmpty()) filtered = filtered.filter { it.date.substring(0, 10) <= filterToDate }
 
@@ -305,6 +331,7 @@ class MainActivity : AppCompatActivity() {
             prefs.edit().putString("syr_pin", inputSyrPin.text.toString().trim()).putString("syr_code", inputSyrCode.text.toString().trim()).putString("syr_amounts", inputSyrAmounts.text.toString().trim()).putString("mtn_pin", inputMtnPin.text.toString().trim()).putString("mtn_code", inputMtnCode.text.toString().trim()).putString("mtn_amounts", inputMtnAmounts.text.toString().trim()).apply()
             Toast.makeText(this, "تم الحفظ", Toast.LENGTH_SHORT).show(); updateSpinner(rbSyr.isChecked)
         }
+
         findViewById<Button>(R.id.btn_share_backup).setOnClickListener { shareBackup() }
 
         loadAllData()
@@ -317,30 +344,22 @@ class MainActivity : AppCompatActivity() {
         if (waitingForTransferConfirm) { waitingForTransferConfirm = false; showTransferConfirmDialog() }
     }
 
-    // ==== هنا تم تعديل نافذة التأكيد لتعرض التصميم الجديد المخصص ====
     private fun showTransferConfirmDialog() {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_transfer_confirm, null)
         val dialog = AlertDialog.Builder(this).setView(view).setCancelable(false).create()
-        
         val tvMessage = view.findViewById<TextView>(R.id.tv_confirm_message)
         tvMessage.text = "هل تمت حوالة " + lastTransAmount + " رصيد لـ " + lastTransName + " بنجاح؟"
-        
         view.findViewById<Button>(R.id.btn_confirm_yes).setOnClickListener {
             dbHelper.addTransaction(lastTransName, lastTransPrice, 1, "تحويل " + lastTransAmount + " رصيد (" + lastTransNet + ")", getCurrentDateString())
             if (executingPendingId != -1) { dbHelper.deletePending(executingPendingId) }
             Toast.makeText(this, "تم قيد " + lastTransPrice + " ل.س كدين", Toast.LENGTH_SHORT).show()
             executingPendingId = -1; loadAllData(); dialog.dismiss()
         }
-        
         view.findViewById<Button>(R.id.btn_confirm_later).setOnClickListener {
             if (executingPendingId == -1) { dbHelper.addPending(lastTransName, lastTransNet, lastTransAmount, lastTransPrice, getCurrentDateString()); Toast.makeText(this, "تم الحفظ في المعلقات", Toast.LENGTH_SHORT).show() }
             executingPendingId = -1; loadAllData(); dialog.dismiss()
         }
-        
-        view.findViewById<Button>(R.id.btn_confirm_cancel).setOnClickListener {
-            executingPendingId = -1; dialog.dismiss()
-        }
-        
+        view.findViewById<Button>(R.id.btn_confirm_cancel).setOnClickListener { executingPendingId = -1; dialog.dismiss() }
         dialog.show()
     }
 
@@ -363,18 +382,15 @@ class MainActivity : AppCompatActivity() {
                         val codeTemplate = if(isSyr) prefs.getString("syr_code", "*150*رقم*مبلغ*رمز#") else prefs.getString("mtn_code", "*150*رقم*مبلغ*رمز#")
                         val safePin = if (pin.isNullOrEmpty()) "0000" else pin
                         val safeTemplate = if (codeTemplate.isNullOrEmpty()) "*150*رقم*مبلغ*رمز#" else codeTemplate
-                        
                         var ussd = safeTemplate.replace("رقم", targetPhone).replace("مبلغ", pending.amount.toString()).replace("رمز", safePin)
                         if (ussd.endsWith("#")) ussd = ussd.dropLast(1)
                         pendingUssdCode = ussd + Uri.encode("#")
-
                         lastTransName = pending.customerName; lastTransAmount = pending.amount; lastTransPrice = pending.price; lastTransNet = pending.network
                         executingPendingId = pending.id; waitingForTransferConfirm = true
                         checkPermissionAndCall(); dialog.dismiss()
                     } else { Toast.makeText(this, "رقم الزبون غير موجود", Toast.LENGTH_SHORT).show() }
                 } else { Toast.makeText(this, "الزبون محذوف!", Toast.LENGTH_SHORT).show() }
             }, { pending -> 
-                // ==== إضافة رسالة تأكيد الحذف للمعلقات ====
                 AlertDialog.Builder(this).setTitle("تأكيد الحذف").setMessage("هل تريد بالتأكيد حذف هذا الطلب المعلق؟").setPositiveButton("حذف") { _, _ ->
                     dbHelper.deletePending(pending.id); loadAllData(); refreshPending()
                 }.setNegativeButton("إلغاء", null).show()
@@ -403,16 +419,18 @@ class MainActivity : AppCompatActivity() {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_trans, null)
         val dialog = AlertDialog.Builder(this).setView(view).create()
         (view.findViewById(R.id.tv_edit_trans_name) as TextView).text = "الزبون: " + trans.customerName
-        val rbDebt = view.findViewById(R.id.rb_edit_debt) as RadioButton
-        val rbPayment = view.findViewById(R.id.rb_edit_payment) as RadioButton
-        if (trans.type == 1) rbDebt.isChecked = true else rbPayment.isChecked = true
+        
+        val tvTypeLabel = view.findViewById<TextView>(R.id.tv_edit_trans_type_label)
+        if (trans.type == 1) { tvTypeLabel.text = "نوع الحركة: دين (تم من التحويل)"; tvTypeLabel.setTextColor(Color.parseColor("#D32F2F")) } 
+        else { tvTypeLabel.text = "نوع الحركة: دفعة (تسديد)"; tvTypeLabel.setTextColor(Color.parseColor("#388E3C")) }
+
         val inputAmount = view.findViewById(R.id.edit_trans_amount) as EditText
         val inputNote = view.findViewById(R.id.edit_trans_note) as EditText
         inputAmount.setText(trans.amount.toString()); inputNote.setText(trans.note)
         (view.findViewById(R.id.btn_update_trans) as Button).setOnClickListener {
             val a = inputAmount.text.toString().trim().toIntOrNull() ?: 0
             if (a > 0) {
-                if (dbHelper.updateTransaction(trans.id, a, if (rbDebt.isChecked) 1 else 2, inputNote.text.toString().trim())) { Toast.makeText(this, "تم التعديل", Toast.LENGTH_SHORT).show(); loadAllData(); dialog.dismiss() }
+                if (dbHelper.updateTransaction(trans.id, a, trans.type, inputNote.text.toString().trim())) { Toast.makeText(this, "تم التعديل", Toast.LENGTH_SHORT).show(); loadAllData(); dialog.dismiss() }
             } else { Toast.makeText(this, "أدخل مبلغ صحيح", Toast.LENGTH_SHORT).show() }
         }
         dialog.show()
