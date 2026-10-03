@@ -124,7 +124,6 @@ class MainActivity : AppCompatActivity() {
         val btnExecuteTransfer = findViewById(R.id.btn_execute_transfer) as Button
         val btnShowPending = findViewById(R.id.btn_show_pending) as Button
 
-        // إصلاح القائمة المنسدلة لتظهر فور اللمس
         inputTransferCustomer.setOnTouchListener { _, _ -> inputTransferCustomer.showDropDown(); false }
         
         fun updateSpinner(isSyr: Boolean) {
@@ -169,11 +168,9 @@ class MainActivity : AppCompatActivity() {
             val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
             val pin = if(isSyr) prefs.getString("syr_pin", "0000") else prefs.getString("mtn_pin", "0000")
             val codeTemplate = if(isSyr) prefs.getString("syr_code", "*150*رقم*مبلغ*رمز#") else prefs.getString("mtn_code", "*150*رقم*مبلغ*رمز#")
-            
             val safePin = if (pin.isNullOrEmpty()) "0000" else pin
             val safeTemplate = if (codeTemplate.isNullOrEmpty()) "*150*رقم*مبلغ*رمز#" else codeTemplate
             
-            // البناء الديناميكي لكود التحويل
             var ussd = safeTemplate.replace("رقم", targetPhone).replace("مبلغ", amountStr).replace("رمز", safePin)
             if (ussd.endsWith("#")) ussd = ussd.dropLast(1)
             pendingUssdCode = ussd + Uri.encode("#")
@@ -242,12 +239,56 @@ class MainActivity : AppCompatActivity() {
             } else { Toast.makeText(this, "أدخل الاسم والمبلغ", Toast.LENGTH_SHORT).show() }
         }
 
+        val inputSearchTrans = findViewById(R.id.input_search_trans) as EditText
+        val btnFilterDate = findViewById(R.id.btn_filter_date) as Button
+        val tvActiveDateFilter = findViewById(R.id.tv_active_date_filter) as TextView
+
+        fun applyTransactionFilters() {
+            var filtered = transactionList.toList()
+            val q = inputSearchTrans.text.toString().lowercase()
+            if (q.isNotEmpty()) filtered = filtered.filter { it.customerName.lowercase().contains(q) }
+            
+            if (filterFromDate.isNotEmpty()) filtered = filtered.filter { it.date.substring(0, 10) >= filterFromDate }
+            if (filterToDate.isNotEmpty()) filtered = filtered.filter { it.date.substring(0, 10) <= filterToDate }
+
+            transactionAdapter.transactions = filtered
+            transactionAdapter.notifyDataSetChanged()
+            
+            if (filterFromDate.isEmpty() && filterToDate.isEmpty()) { tvActiveDateFilter.visibility = View.GONE } 
+            else { 
+                tvActiveDateFilter.visibility = View.VISIBLE
+                tvActiveDateFilter.text = "تاريخ: " + (if(filterFromDate.isEmpty()) "البداية" else filterFromDate) + " إلى " + (if(filterToDate.isEmpty()) "النهاية" else filterToDate)
+            }
+        }
+
+        inputSearchTrans.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) { applyTransactionFilters() }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+
+        btnFilterDate.setOnClickListener {
+            val view = LayoutInflater.from(this).inflate(R.layout.dialog_date_filter, null)
+            val dialog = AlertDialog.Builder(this).setView(view).create()
+            val btnFrom = view.findViewById(R.id.btn_pick_from) as Button
+            val btnTo = view.findViewById(R.id.btn_pick_to) as Button
+            var tempFrom = filterFromDate; var tempTo = filterToDate
+            if (tempFrom.isNotEmpty()) btnFrom.text = "من تاريخ: " + tempFrom
+            if (tempTo.isNotEmpty()) btnTo.text = "إلى تاريخ: " + tempTo
+
+            val cal = Calendar.getInstance()
+            btnFrom.setOnClickListener { DatePickerDialog(this, { _, y, m, d -> tempFrom = String.format(Locale.US, "%04d/%02d/%02d", y, m + 1, d); btnFrom.text = "من تاريخ: " + tempFrom }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show() }
+            btnTo.setOnClickListener { DatePickerDialog(this, { _, y, m, d -> tempTo = String.format(Locale.US, "%04d/%02d/%02d", y, m + 1, d); btnTo.text = "إلى تاريخ: " + tempTo }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show() }
+            (view.findViewById(R.id.btn_clear_dates) as Button).setOnClickListener { filterFromDate = ""; filterToDate = ""; applyTransactionFilters(); dialog.dismiss() }
+            (view.findViewById(R.id.btn_apply_dates) as Button).setOnClickListener { filterFromDate = tempFrom; filterToDate = tempTo; applyTransactionFilters(); dialog.dismiss() }
+            dialog.show()
+        }
+
         // ================= 4. الإعدادات =================
         val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         val inputSyrPin = findViewById(R.id.input_settings_syr_pin) as EditText
         val inputSyrCode = findViewById(R.id.input_settings_syr_code) as EditText
         val inputSyrAmounts = findViewById(R.id.input_settings_syr_amounts) as EditText
-        
         val inputMtnPin = findViewById(R.id.input_settings_mtn_pin) as EditText
         val inputMtnCode = findViewById(R.id.input_settings_mtn_code) as EditText
         val inputMtnAmounts = findViewById(R.id.input_settings_mtn_amounts) as EditText
@@ -261,17 +302,9 @@ class MainActivity : AppCompatActivity() {
         inputMtnAmounts.setText(prefs.getString("mtn_amounts", "1000:1250, 1500:1900"))
 
         findViewById<Button>(R.id.btn_save_settings).setOnClickListener {
-            prefs.edit()
-                .putString("syr_pin", inputSyrPin.text.toString().trim())
-                .putString("syr_code", inputSyrCode.text.toString().trim())
-                .putString("syr_amounts", inputSyrAmounts.text.toString().trim())
-                .putString("mtn_pin", inputMtnPin.text.toString().trim())
-                .putString("mtn_code", inputMtnCode.text.toString().trim())
-                .putString("mtn_amounts", inputMtnAmounts.text.toString().trim())
-                .apply()
+            prefs.edit().putString("syr_pin", inputSyrPin.text.toString().trim()).putString("syr_code", inputSyrCode.text.toString().trim()).putString("syr_amounts", inputSyrAmounts.text.toString().trim()).putString("mtn_pin", inputMtnPin.text.toString().trim()).putString("mtn_code", inputMtnCode.text.toString().trim()).putString("mtn_amounts", inputMtnAmounts.text.toString().trim()).apply()
             Toast.makeText(this, "تم الحفظ", Toast.LENGTH_SHORT).show(); updateSpinner(rbSyr.isChecked)
         }
-
         findViewById<Button>(R.id.btn_share_backup).setOnClickListener { shareBackup() }
 
         loadAllData()
@@ -284,21 +317,31 @@ class MainActivity : AppCompatActivity() {
         if (waitingForTransferConfirm) { waitingForTransferConfirm = false; showTransferConfirmDialog() }
     }
 
+    // ==== هنا تم تعديل نافذة التأكيد لتعرض التصميم الجديد المخصص ====
     private fun showTransferConfirmDialog() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("تأكيد الحوالة").setMessage("هل تمت حوالة " + lastTransAmount + " رصيد لـ " + lastTransName + " بنجاح؟").setCancelable(false)
-        builder.setPositiveButton("نعم (تسجيل دين)") { _, _ ->
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_transfer_confirm, null)
+        val dialog = AlertDialog.Builder(this).setView(view).setCancelable(false).create()
+        
+        val tvMessage = view.findViewById<TextView>(R.id.tv_confirm_message)
+        tvMessage.text = "هل تمت حوالة " + lastTransAmount + " رصيد لـ " + lastTransName + " بنجاح؟"
+        
+        view.findViewById<Button>(R.id.btn_confirm_yes).setOnClickListener {
             dbHelper.addTransaction(lastTransName, lastTransPrice, 1, "تحويل " + lastTransAmount + " رصيد (" + lastTransNet + ")", getCurrentDateString())
             if (executingPendingId != -1) { dbHelper.deletePending(executingPendingId) }
             Toast.makeText(this, "تم قيد " + lastTransPrice + " ل.س كدين", Toast.LENGTH_SHORT).show()
-            executingPendingId = -1; loadAllData()
+            executingPendingId = -1; loadAllData(); dialog.dismiss()
         }
-        builder.setNeutralButton("تأجيل (معلقات)") { _, _ ->
-            if (executingPendingId == -1) { dbHelper.addPending(lastTransName, lastTransNet, lastTransAmount, lastTransPrice, getCurrentDateString()); Toast.makeText(this, "حُفظ بالمعلقات", Toast.LENGTH_SHORT).show() }
-            executingPendingId = -1; loadAllData()
+        
+        view.findViewById<Button>(R.id.btn_confirm_later).setOnClickListener {
+            if (executingPendingId == -1) { dbHelper.addPending(lastTransName, lastTransNet, lastTransAmount, lastTransPrice, getCurrentDateString()); Toast.makeText(this, "تم الحفظ في المعلقات", Toast.LENGTH_SHORT).show() }
+            executingPendingId = -1; loadAllData(); dialog.dismiss()
         }
-        builder.setNegativeButton("لا (إلغاء)") { _, _ -> executingPendingId = -1 }
-        builder.show()
+        
+        view.findViewById<Button>(R.id.btn_confirm_cancel).setOnClickListener {
+            executingPendingId = -1; dialog.dismiss()
+        }
+        
+        dialog.show()
     }
 
     private fun showPendingDialog() {
@@ -308,7 +351,7 @@ class MainActivity : AppCompatActivity() {
         recycler.layoutManager = LinearLayoutManager(this)
         fun refreshPending() {
             val list = dbHelper.getAllPending()
-            if (list.isEmpty()) { dialog.dismiss(); Toast.makeText(this, "لا يوجد طلبات", Toast.LENGTH_SHORT).show() }
+            if (list.isEmpty()) { dialog.dismiss(); Toast.makeText(this, "لا يوجد طلبات معلقة", Toast.LENGTH_SHORT).show() }
             recycler.adapter = PendingAdapter(list, { pending -> 
                 val customer = customerList.find { it.name == pending.customerName }
                 if (customer != null) {
@@ -330,7 +373,12 @@ class MainActivity : AppCompatActivity() {
                         checkPermissionAndCall(); dialog.dismiss()
                     } else { Toast.makeText(this, "رقم الزبون غير موجود", Toast.LENGTH_SHORT).show() }
                 } else { Toast.makeText(this, "الزبون محذوف!", Toast.LENGTH_SHORT).show() }
-            }, { pending -> dbHelper.deletePending(pending.id); loadAllData(); refreshPending() })
+            }, { pending -> 
+                // ==== إضافة رسالة تأكيد الحذف للمعلقات ====
+                AlertDialog.Builder(this).setTitle("تأكيد الحذف").setMessage("هل تريد بالتأكيد حذف هذا الطلب المعلق؟").setPositiveButton("حذف") { _, _ ->
+                    dbHelper.deletePending(pending.id); loadAllData(); refreshPending()
+                }.setNegativeButton("إلغاء", null).show()
+            })
         }
         refreshPending(); dialog.show()
     }
@@ -376,7 +424,6 @@ class MainActivity : AppCompatActivity() {
         customerAdapter.customers = if(qCust.isEmpty()) customerList else customerList.filter { it.name.lowercase().contains(qCust) }
         customerAdapter.notifyDataSetChanged()
 
-        // هذا السطر يضمن تحديث القائمة المنسدلة الذكية وعملها بشكل ممتاز
         customerNamesList.clear(); customerNamesList.addAll(customerList.map { it.name })
         autoAdapterTransfer = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, customerNamesList)
         (findViewById(R.id.input_transfer_customer) as AutoCompleteTextView).setAdapter(autoAdapterTransfer)
