@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layoutDirection="rtl" android:padding="24dp" android:background="#FFFFFF">
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="تعديل الحركة المالية" android:textSize="20sp" android:textStyle="bold" android:textColor="#2C3E50" android:layout_marginBottom="20dp"/>
+    <TextView android:id="@+id/tv_edit_trans_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="الاسم" android:textSize="16sp" android:textStyle="bold" android:textColor="#FF6B00" android:layout_marginBottom="12dp"/>
+    <RadioGroup android:id="@+id/rg_edit_trans_type" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="12dp">
+        <RadioButton android:id="@+id/rb_edit_debt" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="دين (أحمر)" android:textColor="#D32F2F" android:textStyle="bold"/>
+        <RadioButton android:id="@+id/rb_edit_payment" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="دفعة (أخضر)" android:textColor="#388E3C" android:textStyle="bold"/>
+    </RadioGroup>
+    <EditText android:id="@+id/input_edit_trans_amount" android:layout_width="match_parent" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:inputType="number" android:hint="المبلغ" android:paddingStart="16dp" android:paddingEnd="16dp" android:textColor="#333333" android:layout_marginBottom="12dp"/>
+    <EditText android:id="@+id/input_edit_trans_note" android:layout_width="match_parent" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:hint="الملاحظة" android:paddingStart="16dp" android:paddingEnd="16dp" android:textColor="#333333" android:layout_marginBottom="24dp"/>
+    <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_save_edit_trans" android:layout_width="match_parent" android:layout_height="55dp" android:text="حفظ التعديلات" android:textSize="18sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" />
+</LinearLayout>

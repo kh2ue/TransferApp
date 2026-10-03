@@ -17,5 +17,9 @@
             <TextView android:id="@+id/tv_syriatel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Syr: -" android:textSize="14sp" android:textColor="#D32F2F" android:layout_marginTop="4dp"/>
             <TextView android:id="@+id/tv_mtn" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="MTN: -" android:textSize="14sp" android:textColor="#FBC02D" android:layout_marginTop="2dp"/>
         </LinearLayout>
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="حسابه" android:textSize="12sp" android:textColor="#888888"/>
+            <TextView android:id="@+id/tv_customer_balance" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0" android:textSize="16sp" android:textStyle="bold" android:textColor="#FF6B00"/>
+        </LinearLayout>
     </LinearLayout>
 </androidx.cardview.widget.CardView>

@@ -6,7 +6,6 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
 data class Customer(val id: Int, val name: String, val phoneSyriatel: String, val phoneMtn: String)
-// Type: 1 = دين (أخذ رصيد) , 2 = دفعة (سدد مبلغ)
 data class Transaction(val id: Int, val customerName: String, val amount: Int, val type: Int, val note: String)
 
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.db", null, 5) {
@@ -16,21 +15,31 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
     }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS Customers")
-        db.execSQL("DROP TABLE IF EXISTS Debts")
         db.execSQL("DROP TABLE IF EXISTS Transactions")
         onCreate(db)
     }
 
     fun addCustomer(name: String, phoneSyriatel: String, phoneMtn: String): Boolean {
         val db = this.writableDatabase
-        val values = ContentValues().apply {
-            put("Name", name)
-            put("PhoneSyriatel", phoneSyriatel)
-            put("PhoneMtn", phoneMtn)
-        }
+        val values = ContentValues().apply { put("Name", name); put("PhoneSyriatel", phoneSyriatel); put("PhoneMtn", phoneMtn) }
         val result = db.insert("Customers", null, values)
         db.close()
         return result != -1L
+    }
+
+    fun updateCustomer(id: Int, name: String, phoneSyriatel: String, phoneMtn: String): Boolean {
+        val db = this.writableDatabase
+        val values = ContentValues().apply { put("Name", name); put("PhoneSyriatel", phoneSyriatel); put("PhoneMtn", phoneMtn) }
+        val result = db.update("Customers", values, "ID=?", arrayOf(id.toString()))
+        db.close()
+        return result > 0
+    }
+
+    fun deleteCustomer(id: Int): Boolean {
+        val db = this.writableDatabase
+        val result = db.delete("Customers", "ID=?", arrayOf(id.toString()))
+        db.close()
+        return result > 0
     }
 
     fun getAllCustomers(): ArrayList<Customer> {
@@ -54,15 +63,25 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
 
     fun addTransaction(customerName: String, amount: Int, type: Int, note: String): Boolean {
         val db = this.writableDatabase
-        val values = ContentValues().apply {
-            put("CustomerName", customerName)
-            put("Amount", amount)
-            put("Type", type)
-            put("Note", note)
-        }
+        val values = ContentValues().apply { put("CustomerName", customerName); put("Amount", amount); put("Type", type); put("Note", note) }
         val result = db.insert("Transactions", null, values)
         db.close()
         return result != -1L
+    }
+
+    fun updateTransaction(id: Int, amount: Int, type: Int, note: String): Boolean {
+        val db = this.writableDatabase
+        val values = ContentValues().apply { put("Amount", amount); put("Type", type); put("Note", note) }
+        val result = db.update("Transactions", values, "ID=?", arrayOf(id.toString()))
+        db.close()
+        return result > 0
+    }
+
+    fun deleteTransaction(id: Int): Boolean {
+        val db = this.writableDatabase
+        val result = db.delete("Transactions", "ID=?", arrayOf(id.toString()))
+        db.close()
+        return result > 0
     }
 
     fun getAllTransactions(): ArrayList<Transaction> {
@@ -88,11 +107,18 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
     fun getTotalDebt(): Int {
         var total = 0
         val db = this.readableDatabase
-        // الديون (+) ناقص الدفعات (-)
         val cursor = db.rawQuery("SELECT SUM(CASE WHEN Type = 1 THEN Amount ELSE -Amount END) as Total FROM Transactions", null)
-        if (cursor.moveToFirst()) {
-            total = cursor.getInt(cursor.getColumnIndexOrThrow("Total"))
-        }
+        if (cursor.moveToFirst()) { total = cursor.getInt(cursor.getColumnIndexOrThrow("Total")) }
+        cursor.close()
+        db.close()
+        return total
+    }
+
+    fun getCustomerBalance(customerName: String): Int {
+        var total = 0
+        val db = this.readableDatabase
+        val cursor = db.rawQuery("SELECT SUM(CASE WHEN Type = 1 THEN Amount ELSE -Amount END) as Total FROM Transactions WHERE CustomerName = ?", arrayOf(customerName))
+        if (cursor.moveToFirst()) { total = cursor.getInt(cursor.getColumnIndexOrThrow("Total")) }
         cursor.close()
         db.close()
         return total
