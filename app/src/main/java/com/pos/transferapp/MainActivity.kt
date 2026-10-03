@@ -19,8 +19,12 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -55,6 +59,50 @@ class MainActivity : AppCompatActivity() {
 
     private fun getCurrentDateString(): String {
         return SimpleDateFormat("yyyy/MM/dd hh:mm a", Locale.US).format(Date())
+    }
+
+    // --- النسخ الاحتياطي التلقائي عند الخروج ---
+    override fun onStop() {
+        super.onStop()
+        autoBackupDatabase()
+    }
+
+    private fun autoBackupDatabase() {
+        try {
+            val currentDB = getDatabasePath("TransferApp.db")
+            val backupDir = getExternalFilesDir(null)
+            if (backupDir != null && currentDB.exists()) {
+                val backupDB = File(backupDir, "TransferApp_Backup.db")
+                FileInputStream(currentDB).use { src ->
+                    FileOutputStream(backupDB).use { dst ->
+                        src.copyTo(dst)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun shareBackup() {
+        try {
+            autoBackupDatabase() // أخذ نسخة حديثة قبل المشاركة
+            val backupDir = getExternalFilesDir(null)
+            val backupDB = File(backupDir, "TransferApp_Backup.db")
+            if (backupDB.exists()) {
+                val uri = FileProvider.getUriForFile(this, "com.pos.transferapp.fileprovider", backupDB)
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/octet-stream"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(Intent.createChooser(shareIntent, "إرسال النسخة الاحتياطية عبر..."))
+            } else {
+                Toast.makeText(this, "لم يتم العثور على ملف النسخة الاحتياطية", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "حدث خطأ أثناء المشاركة: " + e.message, Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -213,7 +261,6 @@ class MainActivity : AppCompatActivity() {
             } else { Toast.makeText(this, "أدخل الاسم والمبلغ", Toast.LENGTH_SHORT).show() }
         }
 
-        // فلاتر التاريخ والبحث
         val inputSearchTrans = findViewById(R.id.input_search_trans) as EditText
         val btnFilterDate = findViewById(R.id.btn_filter_date) as Button
         val tvActiveDateFilter = findViewById(R.id.tv_active_date_filter) as TextView
@@ -259,11 +306,13 @@ class MainActivity : AppCompatActivity() {
             dialog.show()
         }
 
-        // ================= 4. الإعدادات =================
+        // ================= 4. الإعدادات والنسخ الاحتياطي =================
         val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         val inputSettingsPin = findViewById(R.id.input_settings_pin) as EditText
         val inputSettingsSyrAmounts = findViewById(R.id.input_settings_syr_amounts) as EditText
         val inputSettingsMtnAmounts = findViewById(R.id.input_settings_mtn_amounts) as EditText
+        val btnShareBackup = findViewById(R.id.btn_share_backup) as Button
+
         inputSettingsPin.setText(prefs.getString("default_pin", ""))
         inputSettingsSyrAmounts.setText(prefs.getString("syr_amounts", "1000:1300, 2000:2600, 5000:6500"))
         inputSettingsMtnAmounts.setText(prefs.getString("mtn_amounts", "1000:1250, 2000:2500, 5000:6250"))
@@ -271,6 +320,11 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btn_save_settings).setOnClickListener {
             prefs.edit().putString("default_pin", inputSettingsPin.text.toString().trim()).putString("syr_amounts", inputSettingsSyrAmounts.text.toString().trim()).putString("mtn_amounts", inputSettingsMtnAmounts.text.toString().trim()).apply()
             Toast.makeText(this, "تم الحفظ", Toast.LENGTH_SHORT).show(); updateSpinner(rbSyr.isChecked)
+        }
+
+        // تشغيل المشاركة اليدوية
+        btnShareBackup.setOnClickListener {
+            shareBackup()
         }
 
         loadAllData()
@@ -326,7 +380,6 @@ class MainActivity : AppCompatActivity() {
         refreshPending(); dialog.show()
     }
 
-    // دوال التعديل كاملة
     private fun showEditCustomerDialog(customer: Customer) {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_cust, null)
         val dialog = AlertDialog.Builder(this).setView(view).create()
