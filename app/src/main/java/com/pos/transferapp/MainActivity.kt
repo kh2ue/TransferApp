@@ -6,7 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.PorterDuff
+import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
@@ -44,6 +46,10 @@ class MainActivity : AppCompatActivity() {
     var customerNamesList = ArrayList<String>()
     var currentQuickAmounts = ArrayList<Pair<String, String>>()
     
+    // متغيرات للتحكم بإظهار القوائم
+    var isCustListVisible = false
+    var isTransListVisible = false
+
     var filterFromDate = ""
     var filterToDate = ""
     
@@ -109,7 +115,7 @@ class MainActivity : AppCompatActivity() {
             (navSettings.getChildAt(1) as TextView).setTextColor(if (selected == "settings") orange else gray)
         }
 
-        navTransfer.setOnClickListener { layoutTransfer.visibility = View.VISIBLE; layoutCustomers.visibility = View.GONE; layoutDebt.visibility = View.GONE; layoutSettings.visibility = View.GONE; tvMainTitle.text = "التحويل السريع"; updateNavUI("transfer") }
+        navTransfer.setOnClickListener { layoutTransfer.visibility = View.VISIBLE; layoutCustomers.visibility = View.GONE; layoutDebt.visibility = View.GONE; layoutSettings.visibility = View.GONE; tvMainTitle.text = "تحويل"; updateNavUI("transfer") }
         navCustomers.setOnClickListener { layoutTransfer.visibility = View.GONE; layoutCustomers.visibility = View.VISIBLE; layoutDebt.visibility = View.GONE; layoutSettings.visibility = View.GONE; tvMainTitle.text = "إدارة الزبائن"; updateNavUI("customers") }
         navDebt.setOnClickListener { layoutTransfer.visibility = View.GONE; layoutCustomers.visibility = View.GONE; layoutDebt.visibility = View.VISIBLE; layoutSettings.visibility = View.GONE; tvMainTitle.text = "الحسابات والدفعات"; updateNavUI("debt") }
         navSettings.setOnClickListener { layoutTransfer.visibility = View.GONE; layoutCustomers.visibility = View.GONE; layoutDebt.visibility = View.GONE; layoutSettings.visibility = View.VISIBLE; tvMainTitle.text = "الإعدادات"; updateNavUI("settings") }
@@ -182,18 +188,31 @@ class MainActivity : AppCompatActivity() {
 
         btnShowPending.setOnClickListener { showPendingDialog() }
 
-        // ================= 2. الزبائن (أيقونة البحث المخفية) =================
+        // ================= 2. الزبائن (برمجة الإظهار المخفي والبحث) =================
+        val btnToggleCustomers = findViewById(R.id.btn_toggle_customers) as Button
         val recyclerCustomers = findViewById(R.id.recycler_customers) as RecyclerView
-        recyclerCustomers.layoutManager = LinearLayoutManager(this)
-        customerAdapter = CustomerAdapter(customerList, dbHelper, onEdit = { cust -> showEditCustomerDialog(cust) }, onDelete = { cust ->
-            AlertDialog.Builder(this).setTitle("حذف").setMessage("تأكيد الحذف؟").setPositiveButton("نعم") { _, _ -> if (dbHelper.deleteCustomer(cust.id)) loadAllData() }.setNegativeButton("إلغاء", null).show()
-        })
-        recyclerCustomers.adapter = customerAdapter
-
         val inputSearchCust = findViewById(R.id.input_search_cust) as EditText
         val btnToggleSearchCust = findViewById(R.id.btn_toggle_search_cust) as ImageView
+
+        recyclerCustomers.layoutManager = LinearLayoutManager(this)
+        customerAdapter = CustomerAdapter(customerList, dbHelper, 
+            onEdit = { cust -> showEditCustomerDialog(cust) }, 
+            onDelete = { cust -> AlertDialog.Builder(this).setTitle("حذف").setMessage("تأكيد الحذف؟").setPositiveButton("نعم") { _, _ -> if (dbHelper.deleteCustomer(cust.id)) loadAllData() }.setNegativeButton("إلغاء", null).show() },
+            onPdf = { cust -> showStatementDateDialog(cust) }
+        )
+        recyclerCustomers.adapter = customerAdapter
+
+        btnToggleCustomers.setOnClickListener {
+            isCustListVisible = !isCustListVisible
+            btnToggleCustomers.text = if (isCustListVisible) "الزبائن المسجلين ▲" else "الزبائن المسجلين ▼"
+            recyclerCustomers.visibility = if (isCustListVisible || inputSearchCust.text.isNotEmpty()) View.VISIBLE else View.GONE
+        }
+
         btnToggleSearchCust.setOnClickListener {
-            inputSearchCust.visibility = if (inputSearchCust.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            inputSearchCust.visibility = if (inputSearchCust.visibility == View.VISIBLE) {
+                inputSearchCust.setText("") // مسح النص عند الإغلاق
+                View.GONE
+            } else View.VISIBLE
         }
 
         inputSearchCust.addTextChangedListener(object : TextWatcher {
@@ -201,6 +220,9 @@ class MainActivity : AppCompatActivity() {
                 val q = s.toString().lowercase()
                 customerAdapter.customers = if (q.isEmpty()) customerList else customerList.filter { it.name.lowercase().contains(q) }
                 customerAdapter.notifyDataSetChanged()
+                
+                // السر هنا: إذا كتب شي بالبحث، بتظهر القائمة إجبارياً.. إذا مسحه بترجع لحالة الزر (مخفية أو ظاهرة)
+                recyclerCustomers.visibility = if (q.isNotEmpty() || isCustListVisible) View.VISIBLE else View.GONE
             }
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -218,7 +240,7 @@ class MainActivity : AppCompatActivity() {
             } else { Toast.makeText(this, "أدخل الاسم ورقم", Toast.LENGTH_SHORT).show() }
         }
 
-        // ================= 3. الحسابات (إخفاء الأقسام وإظهارها بالأزرار) =================
+        // ================= 3. الحسابات (برمجة الإخفاء والبحث للحركات) =================
         val btnToggleSummary = findViewById(R.id.btn_toggle_summary) as Button
         val layoutSummaryCards = findViewById(R.id.layout_summary_cards) as View
         btnToggleSummary.setOnClickListener {
@@ -229,46 +251,31 @@ class MainActivity : AppCompatActivity() {
 
         val btnToggleRecords = findViewById(R.id.btn_toggle_records) as Button
         val recyclerTransactions = findViewById(R.id.recycler_transactions) as RecyclerView
-        btnToggleRecords.setOnClickListener {
-            val isVisible = recyclerTransactions.visibility == View.VISIBLE
-            recyclerTransactions.visibility = if (isVisible) View.GONE else View.VISIBLE
-            btnToggleRecords.text = if (isVisible) "السجلات ▼" else "السجلات ▲"
-        }
-
+        val inputSearchTrans = findViewById(R.id.input_search_trans) as EditText
+        val btnFilterDate = findViewById(R.id.btn_filter_date) as Button
+        val tvActiveDateFilter = findViewById(R.id.tv_active_date_filter) as TextView
         val btnToggleSearchTrans = findViewById(R.id.btn_toggle_search_trans) as ImageView
         val layoutSearchTrans = findViewById(R.id.layout_search_trans) as View
-        btnToggleSearchTrans.setOnClickListener {
-            layoutSearchTrans.visibility = if (layoutSearchTrans.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-        }
 
-        val inputTransCustomer = findViewById(R.id.input_trans_customer) as AutoCompleteTextView
-        val inputTransAmount = findViewById(R.id.input_trans_amount) as EditText
-        val inputTransNote = findViewById(R.id.input_trans_note) as EditText
-        val btnSaveTrans = findViewById(R.id.btn_save_trans) as Button
-
-        inputTransCustomer.setOnTouchListener { _, _ -> inputTransCustomer.showDropDown(); false }
-        
         recyclerTransactions.layoutManager = LinearLayoutManager(this)
         transactionAdapter = TransactionAdapter(transactionList, onEdit = { trans -> showEditTransactionDialog(trans) }, onDelete = { trans ->
             AlertDialog.Builder(this).setTitle("حذف").setMessage("تأكيد الحذف؟").setPositiveButton("نعم") { _, _ -> if (dbHelper.deleteTransaction(trans.id)) loadAllData() }.setNegativeButton("إلغاء", null).show()
         })
         recyclerTransactions.adapter = transactionAdapter
 
-        btnSaveTrans.setOnClickListener {
-            val name = inputTransCustomer.text.toString().trim()
-            val amountStr = inputTransAmount.text.toString().trim()
-            if (name.isNotEmpty() && amountStr.isNotEmpty()) {
-                // تسجيل الدفعة فقط (النوع 2) بناءً على طلبك
-                if (dbHelper.addTransaction(name, amountStr.toIntOrNull() ?: 0, 2, inputTransNote.text.toString().trim(), getCurrentDateString())) {
-                    inputTransCustomer.text.clear(); inputTransAmount.text.clear(); inputTransNote.text.clear(); loadAllData()
-                    Toast.makeText(this, "تم تسجيل الدفعة بنجاح", Toast.LENGTH_SHORT).show()
-                }
-            } else { Toast.makeText(this, "أدخل الاسم والمبلغ", Toast.LENGTH_SHORT).show() }
+        btnToggleRecords.setOnClickListener {
+            isTransListVisible = !isTransListVisible
+            btnToggleRecords.text = if (isTransListVisible) "السجلات ▲" else "السجلات ▼"
+            val hasSearch = inputSearchTrans.text.isNotEmpty() || filterFromDate.isNotEmpty() || filterToDate.isNotEmpty()
+            recyclerTransactions.visibility = if (isTransListVisible || hasSearch) View.VISIBLE else View.GONE
         }
 
-        val inputSearchTrans = findViewById(R.id.input_search_trans) as EditText
-        val btnFilterDate = findViewById(R.id.btn_filter_date) as Button
-        val tvActiveDateFilter = findViewById(R.id.tv_active_date_filter) as TextView
+        btnToggleSearchTrans.setOnClickListener {
+            layoutSearchTrans.visibility = if (layoutSearchTrans.visibility == View.VISIBLE) {
+                inputSearchTrans.setText(""); filterFromDate = ""; filterToDate = "" // تصفير البحث عند الإغلاق
+                View.GONE
+            } else View.VISIBLE
+        }
 
         fun applyTransactionFilters() {
             var filtered = transactionList.toList()
@@ -279,6 +286,9 @@ class MainActivity : AppCompatActivity() {
 
             transactionAdapter.transactions = filtered
             transactionAdapter.notifyDataSetChanged()
+            
+            val hasSearch = q.isNotEmpty() || filterFromDate.isNotEmpty() || filterToDate.isNotEmpty()
+            recyclerTransactions.visibility = if (hasSearch || isTransListVisible) View.VISIBLE else View.GONE
             
             if (filterFromDate.isEmpty() && filterToDate.isEmpty()) { tvActiveDateFilter.visibility = View.GONE } 
             else { 
@@ -296,6 +306,8 @@ class MainActivity : AppCompatActivity() {
         btnFilterDate.setOnClickListener {
             val view = LayoutInflater.from(this).inflate(R.layout.dialog_date_filter, null)
             val dialog = AlertDialog.Builder(this).setView(view).create()
+            val tvTitle = view.findViewById<TextView>(R.id.tv_dialog_title)
+            tvTitle.text = "فلترة حسب التاريخ"
             val btnFrom = view.findViewById(R.id.btn_pick_from) as Button
             val btnTo = view.findViewById(R.id.btn_pick_to) as Button
             var tempFrom = filterFromDate; var tempTo = filterToDate
@@ -308,6 +320,23 @@ class MainActivity : AppCompatActivity() {
             (view.findViewById(R.id.btn_clear_dates) as Button).setOnClickListener { filterFromDate = ""; filterToDate = ""; applyTransactionFilters(); dialog.dismiss() }
             (view.findViewById(R.id.btn_apply_dates) as Button).setOnClickListener { filterFromDate = tempFrom; filterToDate = tempTo; applyTransactionFilters(); dialog.dismiss() }
             dialog.show()
+        }
+
+        val inputTransCustomer = findViewById(R.id.input_trans_customer) as AutoCompleteTextView
+        val inputTransAmount = findViewById(R.id.input_trans_amount) as EditText
+        val inputTransNote = findViewById(R.id.input_trans_note) as EditText
+        val btnSaveTrans = findViewById(R.id.btn_save_trans) as Button
+        inputTransCustomer.setOnTouchListener { _, _ -> inputTransCustomer.showDropDown(); false }
+        
+        btnSaveTrans.setOnClickListener {
+            val name = inputTransCustomer.text.toString().trim()
+            val amountStr = inputTransAmount.text.toString().trim()
+            if (name.isNotEmpty() && amountStr.isNotEmpty()) {
+                if (dbHelper.addTransaction(name, amountStr.toIntOrNull() ?: 0, 2, inputTransNote.text.toString().trim(), getCurrentDateString())) {
+                    inputTransCustomer.text.clear(); inputTransAmount.text.clear(); inputTransNote.text.clear(); loadAllData()
+                    Toast.makeText(this, "تم تسجيل الدفعة بنجاح", Toast.LENGTH_SHORT).show()
+                }
+            } else { Toast.makeText(this, "أدخل الاسم والمبلغ", Toast.LENGTH_SHORT).show() }
         }
 
         // ================= 4. الإعدادات =================
@@ -331,12 +360,141 @@ class MainActivity : AppCompatActivity() {
             prefs.edit().putString("syr_pin", inputSyrPin.text.toString().trim()).putString("syr_code", inputSyrCode.text.toString().trim()).putString("syr_amounts", inputSyrAmounts.text.toString().trim()).putString("mtn_pin", inputMtnPin.text.toString().trim()).putString("mtn_code", inputMtnCode.text.toString().trim()).putString("mtn_amounts", inputMtnAmounts.text.toString().trim()).apply()
             Toast.makeText(this, "تم الحفظ", Toast.LENGTH_SHORT).show(); updateSpinner(rbSyr.isChecked)
         }
-
         findViewById<Button>(R.id.btn_share_backup).setOnClickListener { shareBackup() }
 
         loadAllData()
         updateSpinner(true)
         navTransfer.performClick()
+    }
+
+    private fun showStatementDateDialog(customer: Customer) {
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_date_filter, null)
+        val dialog = AlertDialog.Builder(this).setView(view).create()
+        val tvTitle = view.findViewById<TextView>(R.id.tv_dialog_title)
+        tvTitle.text = "كشف حساب: " + customer.name
+        
+        val btnFrom = view.findViewById(R.id.btn_pick_from) as Button
+        val btnTo = view.findViewById(R.id.btn_pick_to) as Button
+        var tempFrom = ""
+        var tempTo = ""
+        val cal = Calendar.getInstance()
+        
+        btnFrom.setOnClickListener { DatePickerDialog(this, { _, y, m, d -> tempFrom = String.format(Locale.US, "%04d/%02d/%02d", y, m + 1, d); btnFrom.text = "من تاريخ: " + tempFrom }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show() }
+        btnTo.setOnClickListener { DatePickerDialog(this, { _, y, m, d -> tempTo = String.format(Locale.US, "%04d/%02d/%02d", y, m + 1, d); btnTo.text = "إلى تاريخ: " + tempTo }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show() }
+        
+        (view.findViewById(R.id.btn_clear_dates) as Button).setOnClickListener { generateAndSharePDF(customer, "", ""); dialog.dismiss() }
+        (view.findViewById(R.id.btn_apply_dates) as Button).setOnClickListener { generateAndSharePDF(customer, tempFrom, tempTo); dialog.dismiss() }
+        dialog.show()
+    }
+
+    private fun generateAndSharePDF(customer: Customer, fromDate: String, toDate: String) {
+        try {
+            val pdfDocument = PdfDocument()
+            var pageNum = 1
+            var pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNum).create()
+            var page = pdfDocument.startPage(pageInfo)
+            var canvas = page.canvas
+
+            val paint = Paint().apply { textSize = 14f; color = Color.BLACK; textAlign = Paint.Align.RIGHT }
+            val boldPaint = Paint().apply { textSize = 14f; color = Color.BLACK; isFakeBoldText = true; textAlign = Paint.Align.RIGHT }
+            val titlePaint = Paint().apply { textSize = 22f; color = Color.parseColor("#FF6B00"); isFakeBoldText = true; textAlign = Paint.Align.RIGHT }
+
+            var y = 60f
+            val startX = 550f
+
+            canvas.drawText("كشف حساب زبون", startX, y, titlePaint)
+            y += 40f
+            canvas.drawText("اسم الزبون: " + customer.name, startX, y, boldPaint)
+            y += 25f
+            val dateText = if (fromDate.isNotEmpty() || toDate.isNotEmpty()) "الفترة: " + (if(fromDate.isEmpty()) "البداية" else fromDate) + " إلى " + (if(toDate.isEmpty()) "النهاية" else toDate) else "الفترة: جميع الحركات السابقة"
+            canvas.drawText(dateText, startX, y, paint)
+            y += 50f
+
+            boldPaint.color = Color.parseColor("#2C3E50")
+            canvas.drawText("التاريخ", 160f, y, boldPaint)
+            canvas.drawText("النوع", 260f, y, boldPaint)
+            canvas.drawText("المبلغ (ل.س)", 380f, y, boldPaint)
+            canvas.drawText("التفاصيل", startX, y, boldPaint)
+            y += 15f
+            canvas.drawLine(50f, y, 550f, y, boldPaint)
+            y += 30f
+
+            var filtered = transactionList.filter { it.customerName == customer.name }.sortedBy { it.id }
+            if (fromDate.isNotEmpty()) filtered = filtered.filter { it.date.substring(0, 10) >= fromDate }
+            if (toDate.isNotEmpty()) filtered = filtered.filter { it.date.substring(0, 10) <= toDate }
+
+            var totalDebt = 0
+            var totalPay = 0
+
+            for (t in filtered) {
+                if (y > 780f) {
+                    pdfDocument.finishPage(page)
+                    pageNum++
+                    pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNum).create()
+                    page = pdfDocument.startPage(pageInfo)
+                    canvas = page.canvas
+                    y = 60f
+                    boldPaint.color = Color.parseColor("#2C3E50")
+                    canvas.drawText("التاريخ", 160f, y, boldPaint)
+                    canvas.drawText("النوع", 260f, y, boldPaint)
+                    canvas.drawText("المبلغ (ل.س)", 380f, y, boldPaint)
+                    canvas.drawText("التفاصيل", startX, y, boldPaint)
+                    y += 15f
+                    canvas.drawLine(50f, y, 550f, y, boldPaint)
+                    y += 30f
+                }
+                if (t.type == 1) totalDebt += t.amount else totalPay += t.amount
+                val typeStr = if (t.type == 1) "دين" else "دفعة"
+                paint.color = Color.GRAY
+                canvas.drawText(t.date.substring(0, 10), 160f, y, paint)
+                boldPaint.color = if (t.type == 1) Color.RED else Color.parseColor("#388E3C")
+                canvas.drawText(typeStr, 260f, y, boldPaint)
+                paint.color = Color.BLACK
+                canvas.drawText(NumberFormat.getNumberInstance(Locale.US).format(t.amount), 380f, y, paint)
+                var note = t.note
+                if (note.length > 18) note = note.substring(0, 18) + ".."
+                canvas.drawText(note, startX, y, paint)
+                y += 30f
+            }
+
+            if (y > 700f) {
+                pdfDocument.finishPage(page)
+                pageNum++
+                pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNum).create()
+                page = pdfDocument.startPage(pageInfo)
+                canvas = page.canvas
+                y = 60f
+            }
+
+            y += 10f
+            boldPaint.color = Color.BLACK
+            canvas.drawLine(50f, y, 550f, y, boldPaint)
+            y += 40f
+            boldPaint.textSize = 16f
+            boldPaint.color = Color.RED
+            canvas.drawText("مجموع ديون الفترة: " + NumberFormat.getNumberInstance(Locale.US).format(totalDebt), startX, y, boldPaint)
+            y += 30f
+            boldPaint.color = Color.parseColor("#388E3C")
+            canvas.drawText("مجموع دفعات الفترة: " + NumberFormat.getNumberInstance(Locale.US).format(totalPay), startX, y, boldPaint)
+            y += 30f
+            val net = totalDebt - totalPay
+            boldPaint.textSize = 18f
+            boldPaint.color = if (net > 0) Color.RED else Color.parseColor("#388E3C")
+            val netText = if (net > 0) "الرصيد المتبقي لنا: " else "الرصيد المتبقي للزبون: "
+            canvas.drawText(netText + NumberFormat.getNumberInstance(Locale.US).format(Math.abs(net)) + " ل.س", startX, y, boldPaint)
+
+            pdfDocument.finishPage(page)
+            val backupDir = getExternalFilesDir(null)
+            val safeName = customer.name.replace(" ", "_")
+            val pdfFile = File(backupDir, "Statement_" + safeName + ".pdf")
+            pdfDocument.writeTo(FileOutputStream(pdfFile))
+            pdfDocument.close()
+
+            val uri = FileProvider.getUriForFile(this, "com.pos.transferapp.fileprovider", pdfFile)
+            val shareIntent = Intent(Intent.ACTION_SEND).apply { type = "application/pdf"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            startActivity(Intent.createChooser(shareIntent, "إرسال كشف الحساب إلى الواتساب..."))
+
+        } catch (e: Exception) { Toast.makeText(this, "خطأ في تصميم الـ PDF: " + e.message, Toast.LENGTH_LONG).show() }
     }
 
     override fun onResume() {
@@ -441,6 +599,9 @@ class MainActivity : AppCompatActivity() {
         val qCust = (findViewById(R.id.input_search_cust) as EditText).text.toString().lowercase()
         customerAdapter.customers = if(qCust.isEmpty()) customerList else customerList.filter { it.name.lowercase().contains(qCust) }
         customerAdapter.notifyDataSetChanged()
+        
+        val recyclerCustomers = findViewById<RecyclerView>(R.id.recycler_customers)
+        recyclerCustomers.visibility = if (qCust.isNotEmpty() || isCustListVisible) View.VISIBLE else View.GONE
 
         customerNamesList.clear(); customerNamesList.addAll(customerList.map { it.name })
         autoAdapterTransfer = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, customerNamesList)
@@ -468,6 +629,10 @@ class MainActivity : AppCompatActivity() {
         if (filterToDate.isNotEmpty()) filteredTrans = filteredTrans.filter { it.date.substring(0, 10) <= filterToDate }
         transactionAdapter.transactions = filteredTrans
         transactionAdapter.notifyDataSetChanged()
+
+        val hasSearch = qTrans.isNotEmpty() || filterFromDate.isNotEmpty() || filterToDate.isNotEmpty()
+        val recyclerTransactions = findViewById<RecyclerView>(R.id.recycler_transactions)
+        recyclerTransactions.visibility = if (hasSearch || isTransListVisible) View.VISIBLE else View.GONE
     }
 
     private fun checkPermissionAndCall() {
@@ -496,9 +661,9 @@ class PendingAdapter(var items: List<PendingRequest>, private val onExecute: (Pe
     override fun getItemCount() = items.size
 }
 
-class CustomerAdapter(var customers: List<Customer>, private val dbHelper: DatabaseHelper, private val onEdit: (Customer) -> Unit, private val onDelete: (Customer) -> Unit) : RecyclerView.Adapter<CustomerAdapter.ViewHolder>() {
+class CustomerAdapter(var customers: List<Customer>, private val dbHelper: DatabaseHelper, private val onEdit: (Customer) -> Unit, private val onDelete: (Customer) -> Unit, private val onPdf: (Customer) -> Unit) : RecyclerView.Adapter<CustomerAdapter.ViewHolder>() {
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvName = view.findViewById(R.id.tv_customer_name) as TextView; val tvSyriatel = view.findViewById(R.id.tv_syriatel) as TextView; val tvMtn = view.findViewById(R.id.tv_mtn) as TextView; val tvInitial = view.findViewById(R.id.tv_initial) as TextView; val tvBalance = view.findViewById(R.id.tv_customer_balance) as TextView; val btnEdit = view.findViewById(R.id.btn_edit_cust) as ImageView; val btnDelete = view.findViewById(R.id.btn_delete_cust) as ImageView
+        val tvName = view.findViewById(R.id.tv_customer_name) as TextView; val tvSyriatel = view.findViewById(R.id.tv_syriatel) as TextView; val tvMtn = view.findViewById(R.id.tv_mtn) as TextView; val tvInitial = view.findViewById(R.id.tv_initial) as TextView; val tvBalance = view.findViewById(R.id.tv_customer_balance) as TextView; val btnEdit = view.findViewById(R.id.btn_edit_cust) as ImageView; val btnDelete = view.findViewById(R.id.btn_delete_cust) as ImageView; val btnPdf = view.findViewById(R.id.btn_pdf_cust) as ImageView
     }
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_customer, parent, false))
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
@@ -508,7 +673,7 @@ class CustomerAdapter(var customers: List<Customer>, private val dbHelper: Datab
         val balance = dbHelper.getCustomerBalance(customer.name)
         holder.tvBalance.text = NumberFormat.getNumberInstance(Locale.US).format(balance)
         holder.tvBalance.setTextColor(if(balance < 0) Color.parseColor("#388E3C") else Color.parseColor("#FF6B00"))
-        holder.btnEdit.setOnClickListener { onEdit(customer) }; holder.btnDelete.setOnClickListener { onDelete(customer) }
+        holder.btnEdit.setOnClickListener { onEdit(customer) }; holder.btnDelete.setOnClickListener { onDelete(customer) }; holder.btnPdf.setOnClickListener { onPdf(customer) }
     }
     override fun getItemCount() = customers.size
 }

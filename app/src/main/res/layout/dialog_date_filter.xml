@@ -3,14 +3,14 @@
     android:layout_width="match_parent" android:layout_height="wrap_content"
     android:orientation="vertical" android:layoutDirection="rtl" android:padding="24dp" android:background="#FFFFFF">
     
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="فلترة حسب التاريخ" android:textSize="20sp" android:textStyle="bold" android:textColor="#2C3E50" android:layout_marginBottom="20dp"/>
+    <TextView android:id="@+id/tv_dialog_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="فلترة حسب التاريخ" android:textSize="20sp" android:textStyle="bold" android:textColor="#2C3E50" android:layout_marginBottom="20dp"/>
     
     <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_pick_from" android:layout_width="match_parent" android:layout_height="55dp" android:text="من تاريخ: غير محدد" android:background="@drawable/bg_input_gray" android:layout_marginBottom="12dp" android:gravity="start|center_vertical" android:paddingStart="16dp" android:textColor="#333333"/>
     
     <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_pick_to" android:layout_width="match_parent" android:layout_height="55dp" android:text="إلى تاريخ: غير محدد" android:background="@drawable/bg_input_gray" android:layout_marginBottom="24dp" android:gravity="start|center_vertical" android:paddingStart="16dp" android:textColor="#333333"/>
     
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-        <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_clear_dates" android:layout_width="0dp" android:layout_weight="1" android:layout_height="55dp" android:text="مسح الفلتر" android:background="#EEEEEE" android:textColor="#333333" android:layout_marginEnd="8dp"/>
-        <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_apply_dates" android:layout_width="0dp" android:layout_weight="1" android:layout_height="55dp" android:text="تطبيق البحث" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" />
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_clear_dates" android:layout_width="0dp" android:layout_weight="1" android:layout_height="55dp" android:text="بدون فلتر" android:background="#EEEEEE" android:textColor="#333333" android:layout_marginEnd="8dp"/>
+        <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_apply_dates" android:layout_width="0dp" android:layout_weight="1" android:layout_height="55dp" android:text="متابعة" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" />
     </LinearLayout>
 </LinearLayout>
