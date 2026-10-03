@@ -668,7 +668,7 @@ class CustomerAdapter(var customers: List<Customer>, private val dbHelper: Datab
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_customer, parent, false))
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val customer = customers[position]
-        holder.tvName.text = customer.name; holder.tvSyriatel.text = if (customer.phoneSyriatel.isNotEmpty()) "Syr: " + customer.phoneSyriatel else "Syr: -"; holder.tvMtn.text = if (customer.phoneMtn.isNotEmpty()) "MTN: " + customer.phoneMtn else "MTN: -"
+        holder.tvName.text = customer.name; holder.tvSyriatel.text = if (customer.phoneSyriatel.isNotEmpty()) "SYRIATEL: " + customer.phoneSyriatel else "SYRIATEL: -"; holder.tvMtn.text = if (customer.phoneMtn.isNotEmpty()) "MTN: " + customer.phoneMtn else "MTN: -"
         if (customer.name.isNotEmpty()) holder.tvInitial.text = customer.name.take(1)
         val balance = dbHelper.getCustomerBalance(customer.name)
         holder.tvBalance.text = NumberFormat.getNumberInstance(Locale.US).format(balance)
