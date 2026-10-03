@@ -57,52 +57,28 @@ class MainActivity : AppCompatActivity() {
     var lastTransNet = ""
     var executingPendingId = -1
 
-    private fun getCurrentDateString(): String {
-        return SimpleDateFormat("yyyy/MM/dd hh:mm a", Locale.US).format(Date())
-    }
+    private fun getCurrentDateString(): String { return SimpleDateFormat("yyyy/MM/dd hh:mm a", Locale.US).format(Date()) }
 
-    // --- النسخ الاحتياطي التلقائي عند الخروج ---
-    override fun onStop() {
-        super.onStop()
-        autoBackupDatabase()
-    }
-
+    override fun onStop() { super.onStop(); autoBackupDatabase() }
     private fun autoBackupDatabase() {
         try {
             val currentDB = getDatabasePath("TransferApp.db")
             val backupDir = getExternalFilesDir(null)
             if (backupDir != null && currentDB.exists()) {
-                val backupDB = File(backupDir, "TransferApp_Backup.db")
-                FileInputStream(currentDB).use { src ->
-                    FileOutputStream(backupDB).use { dst ->
-                        src.copyTo(dst)
-                    }
-                }
+                FileInputStream(currentDB).use { src -> FileOutputStream(File(backupDir, "TransferApp_Backup.db")).use { dst -> src.copyTo(dst) } }
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (e: Exception) {}
     }
-
     private fun shareBackup() {
         try {
-            autoBackupDatabase() // أخذ نسخة حديثة قبل المشاركة
-            val backupDir = getExternalFilesDir(null)
-            val backupDB = File(backupDir, "TransferApp_Backup.db")
+            autoBackupDatabase()
+            val backupDB = File(getExternalFilesDir(null), "TransferApp_Backup.db")
             if (backupDB.exists()) {
                 val uri = FileProvider.getUriForFile(this, "com.pos.transferapp.fileprovider", backupDB)
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "application/octet-stream"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
+                val shareIntent = Intent(Intent.ACTION_SEND).apply { type = "application/octet-stream"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
                 startActivity(Intent.createChooser(shareIntent, "إرسال النسخة الاحتياطية عبر..."))
-            } else {
-                Toast.makeText(this, "لم يتم العثور على ملف النسخة الاحتياطية", Toast.LENGTH_SHORT).show()
-            }
-        } catch (e: Exception) {
-            Toast.makeText(this, "حدث خطأ أثناء المشاركة: " + e.message, Toast.LENGTH_SHORT).show()
-        }
+            } else { Toast.makeText(this, "لم يتم العثور على ملف", Toast.LENGTH_SHORT).show() }
+        } catch (e: Exception) { Toast.makeText(this, "خطأ: " + e.message, Toast.LENGTH_SHORT).show() }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -148,10 +124,9 @@ class MainActivity : AppCompatActivity() {
         val btnExecuteTransfer = findViewById(R.id.btn_execute_transfer) as Button
         val btnShowPending = findViewById(R.id.btn_show_pending) as Button
 
-        inputTransferCustomer.setOnClickListener { inputTransferCustomer.showDropDown() }
-        autoAdapterTransfer = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, customerNamesList)
-        inputTransferCustomer.setAdapter(autoAdapterTransfer)
-
+        // إصلاح القائمة المنسدلة لتظهر فور اللمس
+        inputTransferCustomer.setOnTouchListener { _, _ -> inputTransferCustomer.showDropDown(); false }
+        
         fun updateSpinner(isSyr: Boolean) {
             val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
             val raw = if (isSyr) prefs.getString("syr_amounts", "1000:1300, 2000:2600") else prefs.getString("mtn_amounts", "1000:1300, 2000:2600")
@@ -192,11 +167,19 @@ class MainActivity : AppCompatActivity() {
             if (amountStr.isEmpty() || priceStr.isEmpty()) { Toast.makeText(this, "أدخل الرصيد والسعر", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
 
             val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
-            val finalPin = prefs.getString("default_pin", "")?.takeIf { it.isNotEmpty() } ?: "0000"
+            val pin = if(isSyr) prefs.getString("syr_pin", "0000") else prefs.getString("mtn_pin", "0000")
+            val codeTemplate = if(isSyr) prefs.getString("syr_code", "*150*رقم*مبلغ*رمز#") else prefs.getString("mtn_code", "*150*رقم*مبلغ*رمز#")
+            
+            val safePin = if (pin.isNullOrEmpty()) "0000" else pin
+            val safeTemplate = if (codeTemplate.isNullOrEmpty()) "*150*رقم*مبلغ*رمز#" else codeTemplate
+            
+            // البناء الديناميكي لكود التحويل
+            var ussd = safeTemplate.replace("رقم", targetPhone).replace("مبلغ", amountStr).replace("رمز", safePin)
+            if (ussd.endsWith("#")) ussd = ussd.dropLast(1)
+            pendingUssdCode = ussd + Uri.encode("#")
             
             lastTransName = selectedName; lastTransAmount = amountStr.toIntOrNull() ?: 0; lastTransPrice = priceStr.toIntOrNull() ?: 0; lastTransNet = if(isSyr) "Syr" else "MTN"
             executingPendingId = -1; waitingForTransferConfirm = true
-            pendingUssdCode = "*150*" + targetPhone + "*" + lastTransAmount + "*" + finalPin + Uri.encode("#")
             checkPermissionAndCall()
         }
 
@@ -241,10 +224,8 @@ class MainActivity : AppCompatActivity() {
         val btnSaveTrans = findViewById(R.id.btn_save_trans) as Button
         val recyclerTransactions = findViewById(R.id.recycler_transactions) as RecyclerView
 
-        inputTransCustomer.setOnClickListener { inputTransCustomer.showDropDown() }
-        autoAdapterTrans = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, customerNamesList)
-        inputTransCustomer.setAdapter(autoAdapterTrans)
-
+        inputTransCustomer.setOnTouchListener { _, _ -> inputTransCustomer.showDropDown(); false }
+        
         recyclerTransactions.layoutManager = LinearLayoutManager(this)
         transactionAdapter = TransactionAdapter(transactionList, onEdit = { trans -> showEditTransactionDialog(trans) }, onDelete = { trans ->
             AlertDialog.Builder(this).setTitle("حذف").setMessage("تأكيد الحذف؟").setPositiveButton("نعم") { _, _ -> if (dbHelper.deleteTransaction(trans.id)) loadAllData() }.setNegativeButton("إلغاء", null).show()
@@ -261,71 +242,37 @@ class MainActivity : AppCompatActivity() {
             } else { Toast.makeText(this, "أدخل الاسم والمبلغ", Toast.LENGTH_SHORT).show() }
         }
 
-        val inputSearchTrans = findViewById(R.id.input_search_trans) as EditText
-        val btnFilterDate = findViewById(R.id.btn_filter_date) as Button
-        val tvActiveDateFilter = findViewById(R.id.tv_active_date_filter) as TextView
-
-        fun applyTransactionFilters() {
-            var filtered = transactionList.toList()
-            val q = inputSearchTrans.text.toString().lowercase()
-            if (q.isNotEmpty()) filtered = filtered.filter { it.customerName.lowercase().contains(q) }
-            
-            if (filterFromDate.isNotEmpty()) filtered = filtered.filter { it.date.substring(0, 10) >= filterFromDate }
-            if (filterToDate.isNotEmpty()) filtered = filtered.filter { it.date.substring(0, 10) <= filterToDate }
-
-            transactionAdapter.transactions = filtered
-            transactionAdapter.notifyDataSetChanged()
-            
-            if (filterFromDate.isEmpty() && filterToDate.isEmpty()) { tvActiveDateFilter.visibility = View.GONE } 
-            else { 
-                tvActiveDateFilter.visibility = View.VISIBLE
-                tvActiveDateFilter.text = "تاريخ: " + (if(filterFromDate.isEmpty()) "البداية" else filterFromDate) + " إلى " + (if(filterToDate.isEmpty()) "النهاية" else filterToDate)
-            }
-        }
-
-        inputSearchTrans.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) { applyTransactionFilters() }
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-        })
-
-        btnFilterDate.setOnClickListener {
-            val view = LayoutInflater.from(this).inflate(R.layout.dialog_date_filter, null)
-            val dialog = AlertDialog.Builder(this).setView(view).create()
-            val btnFrom = view.findViewById(R.id.btn_pick_from) as Button
-            val btnTo = view.findViewById(R.id.btn_pick_to) as Button
-            var tempFrom = filterFromDate; var tempTo = filterToDate
-            if (tempFrom.isNotEmpty()) btnFrom.text = "من تاريخ: " + tempFrom
-            if (tempTo.isNotEmpty()) btnTo.text = "إلى تاريخ: " + tempTo
-
-            val cal = Calendar.getInstance()
-            btnFrom.setOnClickListener { DatePickerDialog(this, { _, y, m, d -> tempFrom = String.format(Locale.US, "%04d/%02d/%02d", y, m + 1, d); btnFrom.text = "من تاريخ: " + tempFrom }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show() }
-            btnTo.setOnClickListener { DatePickerDialog(this, { _, y, m, d -> tempTo = String.format(Locale.US, "%04d/%02d/%02d", y, m + 1, d); btnTo.text = "إلى تاريخ: " + tempTo }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show() }
-            (view.findViewById(R.id.btn_clear_dates) as Button).setOnClickListener { filterFromDate = ""; filterToDate = ""; applyTransactionFilters(); dialog.dismiss() }
-            (view.findViewById(R.id.btn_apply_dates) as Button).setOnClickListener { filterFromDate = tempFrom; filterToDate = tempTo; applyTransactionFilters(); dialog.dismiss() }
-            dialog.show()
-        }
-
-        // ================= 4. الإعدادات والنسخ الاحتياطي =================
+        // ================= 4. الإعدادات =================
         val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
-        val inputSettingsPin = findViewById(R.id.input_settings_pin) as EditText
-        val inputSettingsSyrAmounts = findViewById(R.id.input_settings_syr_amounts) as EditText
-        val inputSettingsMtnAmounts = findViewById(R.id.input_settings_mtn_amounts) as EditText
-        val btnShareBackup = findViewById(R.id.btn_share_backup) as Button
-
-        inputSettingsPin.setText(prefs.getString("default_pin", ""))
-        inputSettingsSyrAmounts.setText(prefs.getString("syr_amounts", "1000:1300, 2000:2600, 5000:6500"))
-        inputSettingsMtnAmounts.setText(prefs.getString("mtn_amounts", "1000:1250, 2000:2500, 5000:6250"))
+        val inputSyrPin = findViewById(R.id.input_settings_syr_pin) as EditText
+        val inputSyrCode = findViewById(R.id.input_settings_syr_code) as EditText
+        val inputSyrAmounts = findViewById(R.id.input_settings_syr_amounts) as EditText
+        
+        val inputMtnPin = findViewById(R.id.input_settings_mtn_pin) as EditText
+        val inputMtnCode = findViewById(R.id.input_settings_mtn_code) as EditText
+        val inputMtnAmounts = findViewById(R.id.input_settings_mtn_amounts) as EditText
+        
+        inputSyrPin.setText(prefs.getString("syr_pin", ""))
+        inputSyrCode.setText(prefs.getString("syr_code", "*150*رقم*مبلغ*رمز#"))
+        inputSyrAmounts.setText(prefs.getString("syr_amounts", "1000:1300, 2000:2600"))
+        
+        inputMtnPin.setText(prefs.getString("mtn_pin", ""))
+        inputMtnCode.setText(prefs.getString("mtn_code", "*150*رقم*مبلغ*رمز#"))
+        inputMtnAmounts.setText(prefs.getString("mtn_amounts", "1000:1250, 1500:1900"))
 
         findViewById<Button>(R.id.btn_save_settings).setOnClickListener {
-            prefs.edit().putString("default_pin", inputSettingsPin.text.toString().trim()).putString("syr_amounts", inputSettingsSyrAmounts.text.toString().trim()).putString("mtn_amounts", inputSettingsMtnAmounts.text.toString().trim()).apply()
+            prefs.edit()
+                .putString("syr_pin", inputSyrPin.text.toString().trim())
+                .putString("syr_code", inputSyrCode.text.toString().trim())
+                .putString("syr_amounts", inputSyrAmounts.text.toString().trim())
+                .putString("mtn_pin", inputMtnPin.text.toString().trim())
+                .putString("mtn_code", inputMtnCode.text.toString().trim())
+                .putString("mtn_amounts", inputMtnAmounts.text.toString().trim())
+                .apply()
             Toast.makeText(this, "تم الحفظ", Toast.LENGTH_SHORT).show(); updateSpinner(rbSyr.isChecked)
         }
 
-        // تشغيل المشاركة اليدوية
-        btnShareBackup.setOnClickListener {
-            shareBackup()
-        }
+        findViewById<Button>(R.id.btn_share_backup).setOnClickListener { shareBackup() }
 
         loadAllData()
         updateSpinner(true)
@@ -365,13 +312,21 @@ class MainActivity : AppCompatActivity() {
             recycler.adapter = PendingAdapter(list, { pending -> 
                 val customer = customerList.find { it.name == pending.customerName }
                 if (customer != null) {
-                    val targetPhone = if (pending.network == "Syr") customer.phoneSyriatel else customer.phoneMtn
+                    val isSyr = pending.network == "Syr"
+                    val targetPhone = if (isSyr) customer.phoneSyriatel else customer.phoneMtn
                     if (targetPhone.isNotEmpty()) {
+                        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+                        val pin = if(isSyr) prefs.getString("syr_pin", "0000") else prefs.getString("mtn_pin", "0000")
+                        val codeTemplate = if(isSyr) prefs.getString("syr_code", "*150*رقم*مبلغ*رمز#") else prefs.getString("mtn_code", "*150*رقم*مبلغ*رمز#")
+                        val safePin = if (pin.isNullOrEmpty()) "0000" else pin
+                        val safeTemplate = if (codeTemplate.isNullOrEmpty()) "*150*رقم*مبلغ*رمز#" else codeTemplate
+                        
+                        var ussd = safeTemplate.replace("رقم", targetPhone).replace("مبلغ", pending.amount.toString()).replace("رمز", safePin)
+                        if (ussd.endsWith("#")) ussd = ussd.dropLast(1)
+                        pendingUssdCode = ussd + Uri.encode("#")
+
                         lastTransName = pending.customerName; lastTransAmount = pending.amount; lastTransPrice = pending.price; lastTransNet = pending.network
                         executingPendingId = pending.id; waitingForTransferConfirm = true
-                        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
-                        val finalPin = prefs.getString("default_pin", "")?.takeIf { it.isNotEmpty() } ?: "0000"
-                        pendingUssdCode = "*150*" + targetPhone + "*" + pending.amount + "*" + finalPin + Uri.encode("#")
                         checkPermissionAndCall(); dialog.dismiss()
                     } else { Toast.makeText(this, "رقم الزبون غير موجود", Toast.LENGTH_SHORT).show() }
                 } else { Toast.makeText(this, "الزبون محذوف!", Toast.LENGTH_SHORT).show() }
@@ -421,8 +376,12 @@ class MainActivity : AppCompatActivity() {
         customerAdapter.customers = if(qCust.isEmpty()) customerList else customerList.filter { it.name.lowercase().contains(qCust) }
         customerAdapter.notifyDataSetChanged()
 
+        // هذا السطر يضمن تحديث القائمة المنسدلة الذكية وعملها بشكل ممتاز
         customerNamesList.clear(); customerNamesList.addAll(customerList.map { it.name })
-        autoAdapterTransfer.notifyDataSetChanged(); autoAdapterTrans.notifyDataSetChanged()
+        autoAdapterTransfer = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, customerNamesList)
+        (findViewById(R.id.input_transfer_customer) as AutoCompleteTextView).setAdapter(autoAdapterTransfer)
+        autoAdapterTrans = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, customerNamesList)
+        (findViewById(R.id.input_trans_customer) as AutoCompleteTextView).setAdapter(autoAdapterTrans)
 
         transactionList.clear(); transactionList.addAll(dbHelper.getAllTransactions())
         
