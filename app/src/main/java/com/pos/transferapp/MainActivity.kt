@@ -28,12 +28,10 @@ class MainActivity : AppCompatActivity() {
     lateinit var transactionAdapter: TransactionAdapter
     var customerList = ArrayList<Customer>()
     var transactionList = ArrayList<Transaction>()
-    
     lateinit var autoAdapterTransfer: ArrayAdapter<String>
     lateinit var autoAdapterTrans: ArrayAdapter<String>
     var customerNamesList = ArrayList<String>()
     var currentQuickAmounts = ArrayList<Pair<String, String>>()
-
     private val CALL_REQUEST_CODE = 123
     private var pendingUssdCode = ""
     lateinit var tvTotalDebt: TextView
@@ -41,7 +39,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
         dbHelper = DatabaseHelper(this)
 
         val tvMainTitle = findViewById(R.id.tv_main_title) as TextView
@@ -55,25 +52,16 @@ class MainActivity : AppCompatActivity() {
         val navDebt = findViewById(R.id.nav_debt) as ViewGroup
         val navSettings = findViewById(R.id.nav_settings) as ViewGroup
 
-        val ivTransfer = navTransfer.getChildAt(0) as ImageView
-        val tvTransfer = navTransfer.getChildAt(1) as TextView
-        val ivCustomers = navCustomers.getChildAt(0) as ImageView
-        val tvCustomers = navCustomers.getChildAt(1) as TextView
-        val ivDebt = navDebt.getChildAt(0) as ImageView
-        val tvDebt = navDebt.getChildAt(1) as TextView
-        val ivSettings = navSettings.getChildAt(0) as ImageView
-        val tvSettings = navSettings.getChildAt(1) as TextView
-
         fun updateNavUI(selected: String) {
             val orange = Color.parseColor("#FF6B00"); val gray = Color.parseColor("#888888")
-            ivTransfer.setColorFilter(if (selected == "transfer") orange else gray, PorterDuff.Mode.SRC_IN)
-            tvTransfer.setTextColor(if (selected == "transfer") orange else gray)
-            ivCustomers.setColorFilter(if (selected == "customers") orange else gray, PorterDuff.Mode.SRC_IN)
-            tvCustomers.setTextColor(if (selected == "customers") orange else gray)
-            ivDebt.setColorFilter(if (selected == "debt") orange else gray, PorterDuff.Mode.SRC_IN)
-            tvDebt.setTextColor(if (selected == "debt") orange else gray)
-            ivSettings.setColorFilter(if (selected == "settings") orange else gray, PorterDuff.Mode.SRC_IN)
-            tvSettings.setTextColor(if (selected == "settings") orange else gray)
+            (navTransfer.getChildAt(0) as ImageView).setColorFilter(if (selected == "transfer") orange else gray, PorterDuff.Mode.SRC_IN)
+            (navTransfer.getChildAt(1) as TextView).setTextColor(if (selected == "transfer") orange else gray)
+            (navCustomers.getChildAt(0) as ImageView).setColorFilter(if (selected == "customers") orange else gray, PorterDuff.Mode.SRC_IN)
+            (navCustomers.getChildAt(1) as TextView).setTextColor(if (selected == "customers") orange else gray)
+            (navDebt.getChildAt(0) as ImageView).setColorFilter(if (selected == "debt") orange else gray, PorterDuff.Mode.SRC_IN)
+            (navDebt.getChildAt(1) as TextView).setTextColor(if (selected == "debt") orange else gray)
+            (navSettings.getChildAt(0) as ImageView).setColorFilter(if (selected == "settings") orange else gray, PorterDuff.Mode.SRC_IN)
+            (navSettings.getChildAt(1) as TextView).setTextColor(if (selected == "settings") orange else gray)
         }
 
         navTransfer.setOnClickListener { layoutTransfer.visibility = View.VISIBLE; layoutCustomers.visibility = View.GONE; layoutDebt.visibility = View.GONE; layoutSettings.visibility = View.GONE; tvMainTitle.text = "التحويل السريع"; updateNavUI("transfer") }
@@ -81,7 +69,7 @@ class MainActivity : AppCompatActivity() {
         navDebt.setOnClickListener { layoutTransfer.visibility = View.GONE; layoutCustomers.visibility = View.GONE; layoutDebt.visibility = View.VISIBLE; layoutSettings.visibility = View.GONE; tvMainTitle.text = "الحسابات والدفعات"; updateNavUI("debt") }
         navSettings.setOnClickListener { layoutTransfer.visibility = View.GONE; layoutCustomers.visibility = View.GONE; layoutDebt.visibility = View.GONE; layoutSettings.visibility = View.VISIBLE; tvMainTitle.text = "الإعدادات"; updateNavUI("settings") }
 
-        // ================= 1. قسم التحويل =================
+        // ================= 1. التحويل =================
         val inputTransferCustomer = findViewById(R.id.input_transfer_customer) as AutoCompleteTextView
         val rbSyr = findViewById(R.id.rb_syr) as RadioButton
         val rbMtn = findViewById(R.id.rb_mtn) as RadioButton
@@ -91,27 +79,20 @@ class MainActivity : AppCompatActivity() {
         val btnExecuteTransfer = findViewById(R.id.btn_execute_transfer) as Button
 
         inputTransferCustomer.setOnClickListener { inputTransferCustomer.showDropDown() }
-        inputTransferCustomer.setOnFocusChangeListener { _, hasFocus -> if (hasFocus) inputTransferCustomer.showDropDown() }
         autoAdapterTransfer = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, customerNamesList)
         inputTransferCustomer.setAdapter(autoAdapterTransfer)
-
-        fun parseAmounts(rawString: String): ArrayList<Pair<String, String>> {
-            val list = ArrayList<Pair<String, String>>()
-            val items = rawString.split(",")
-            for (item in items) {
-                val parts = item.trim().split(":")
-                if (parts.size >= 2) list.add(Pair(parts[0].trim(), parts[1].trim()))
-                else if (parts.size == 1 && parts[0].trim().isNotEmpty()) list.add(Pair(parts[0].trim(), parts[0].trim()))
-            }
-            return list
-        }
 
         fun updateSpinner(isSyr: Boolean) {
             val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
             val raw = if (isSyr) prefs.getString("syr_amounts", "1000:1300, 2000:2600") else prefs.getString("mtn_amounts", "1000:1300, 2000:2600")
-            currentQuickAmounts = parseAmounts(raw ?: "")
-            val displayList = ArrayList<String>(); displayList.add("اختر الفئة (اختياري)...")
-            for (pair in currentQuickAmounts) displayList.add("مبلغ: ${pair.first} رصيد | التكلفة: ${pair.second} ل.س")
+            currentQuickAmounts = ArrayList()
+            raw?.split(",")?.forEach { item ->
+                val parts = item.trim().split(":")
+                if (parts.size >= 2) currentQuickAmounts.add(Pair(parts[0].trim(), parts[1].trim()))
+                else if (parts.size == 1 && parts[0].trim().isNotEmpty()) currentQuickAmounts.add(Pair(parts[0].trim(), parts[0].trim()))
+            }
+            val displayList = ArrayList<String>().apply { add("اختر الفئة (اختياري)...") }
+            currentQuickAmounts.forEach { displayList.add("مبلغ: ${it.first} رصيد | التكلفة: ${it.second} ل.س") }
             spinnerQuickAmounts.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, displayList)
             inputTransferAmount.setText(""); inputTransferPrice.setText("")
         }
@@ -122,8 +103,8 @@ class MainActivity : AppCompatActivity() {
         spinnerQuickAmounts.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 if (position > 0) {
-                    val selectedPair = currentQuickAmounts[position - 1]
-                    inputTransferAmount.setText(selectedPair.first); inputTransferPrice.setText(selectedPair.second)
+                    inputTransferAmount.setText(currentQuickAmounts[position - 1].first)
+                    inputTransferPrice.setText(currentQuickAmounts[position - 1].second)
                 }
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -134,7 +115,6 @@ class MainActivity : AppCompatActivity() {
             val amount = inputTransferAmount.text.toString().trim()
             val priceStr = inputTransferPrice.text.toString().trim()
             val isSyr = rbSyr.isChecked
-            
             val customer = customerList.find { it.name == selectedName }
             if (customer == null) { Toast.makeText(this, "اختر زبون مسجل", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
             val targetPhone = if (isSyr) customer.phoneSyriatel else customer.phoneMtn
@@ -143,72 +123,40 @@ class MainActivity : AppCompatActivity() {
 
             val price = priceStr.toIntOrNull() ?: 0
             val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
-            val pin = prefs.getString("default_pin", "") ?: ""
-            val finalPin = if (pin.isEmpty()) "0000" else pin
-
-            val ussd = "*150*$targetPhone*$amount*$finalPin"
-            pendingUssdCode = ussd + Uri.encode("#")
+            val finalPin = prefs.getString("default_pin", "")?.takeIf { it.isNotEmpty() } ?: "0000"
+            pendingUssdCode = "*150*$targetPhone*$amount*$finalPin" + Uri.encode("#")
             
-            val netName = if(isSyr) "Syr" else "MTN"
-            dbHelper.addTransaction(selectedName, price, 1, "تحويل $amount رصيد ($netName)")
+            dbHelper.addTransaction(selectedName, price, 1, "تحويل $amount رصيد (${if(isSyr) "Syr" else "MTN"})")
             loadAllData() 
             Toast.makeText(this, "تم قيد $price ل.س كدين", Toast.LENGTH_SHORT).show()
-            
             checkPermissionAndCall()
         }
 
-        // ================= 2. الإعدادات =================
-        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
-        val inputSettingsPin = findViewById(R.id.input_settings_pin) as EditText
-        val inputSettingsSyrAmounts = findViewById(R.id.input_settings_syr_amounts) as EditText
-        val inputSettingsMtnAmounts = findViewById(R.id.input_settings_mtn_amounts) as EditText
-        val btnSaveSettings = findViewById(R.id.btn_save_settings) as Button
-
-        inputSettingsPin.setText(prefs.getString("default_pin", ""))
-        inputSettingsSyrAmounts.setText(prefs.getString("syr_amounts", "1000:1300, 2000:2600, 5000:6500"))
-        inputSettingsMtnAmounts.setText(prefs.getString("mtn_amounts", "1000:1250, 2000:2500, 5000:6250"))
-
-        btnSaveSettings.setOnClickListener {
-            prefs.edit().putString("default_pin", inputSettingsPin.text.toString().trim())
-                .putString("syr_amounts", inputSettingsSyrAmounts.text.toString().trim())
-                .putString("mtn_amounts", inputSettingsMtnAmounts.text.toString().trim()).apply()
-            Toast.makeText(this, "تم حفظ الإعدادات بنجاح!", Toast.LENGTH_SHORT).show()
-            updateSpinner(rbSyr.isChecked)
-        }
-
-        // ================= 3. الزبائن (تعديل بضغطة / حذف بضغطة مطولة) =================
-        val inputCustName = findViewById(R.id.input_cust_name) as EditText
-        val inputCustSyriatel = findViewById(R.id.input_cust_syriatel) as EditText
-        val inputCustMtn = findViewById(R.id.input_cust_mtn) as EditText
-        val btnSaveCust = findViewById(R.id.btn_save_customer) as Button
+        // ================= 2. الزبائن =================
         val recyclerCustomers = findViewById(R.id.recycler_customers) as RecyclerView
-        
         recyclerCustomers.layoutManager = LinearLayoutManager(this)
-        customerAdapter = CustomerAdapter(customerList, dbHelper, { customerToEdit ->
-            // دالة التعديل للزبون
-            showEditCustomerDialog(customerToEdit)
-        }, { customerToDelete ->
-            val builder = AlertDialog.Builder(this)
-            builder.setTitle("تأكيد الحذف").setMessage("هل تريد حذف الزبون: ${customerToDelete.name}؟")
-            builder.setPositiveButton("حذف") { _, _ -> if (dbHelper.deleteCustomer(customerToDelete.id)) { Toast.makeText(this, "تم حذف الزبون", Toast.LENGTH_SHORT).show(); loadAllData() } }
-            builder.setNegativeButton("إلغاء", null).show()
+        customerAdapter = CustomerAdapter(customerList, dbHelper, 
+        onEdit = { cust -> showEditCustomerDialog(cust) },
+        onDelete = { cust ->
+            AlertDialog.Builder(this).setTitle("حذف الزبون").setMessage("تأكيد حذف الزبون: ${cust.name}؟").setPositiveButton("حذف") { _, _ ->
+                if (dbHelper.deleteCustomer(cust.id)) { Toast.makeText(this, "تم الحذف", Toast.LENGTH_SHORT).show(); loadAllData() }
+            }.setNegativeButton("إلغاء", null).show()
         })
         recyclerCustomers.adapter = customerAdapter
 
-        btnSaveCust.setOnClickListener {
-            val name = inputCustName.text.toString().trim()
-            val syriatel = inputCustSyriatel.text.toString().trim()
-            val mtn = inputCustMtn.text.toString().trim()
+        findViewById<Button>(R.id.btn_save_customer).setOnClickListener {
+            val name = (findViewById(R.id.input_cust_name) as EditText).text.toString().trim()
+            val syriatel = (findViewById(R.id.input_cust_syriatel) as EditText).text.toString().trim()
+            val mtn = (findViewById(R.id.input_cust_mtn) as EditText).text.toString().trim()
             if (name.isNotEmpty() && (syriatel.isNotEmpty() || mtn.isNotEmpty())) {
                 if (dbHelper.addCustomer(name, syriatel, mtn)) {
-                    Toast.makeText(this, "تم الحفظ", Toast.LENGTH_SHORT).show()
-                    inputCustName.text.clear(); inputCustSyriatel.text.clear(); inputCustMtn.text.clear()
+                    (findViewById(R.id.input_cust_name) as EditText).text.clear(); (findViewById(R.id.input_cust_syriatel) as EditText).text.clear(); (findViewById(R.id.input_cust_mtn) as EditText).text.clear()
                     loadAllData()
                 }
             } else { Toast.makeText(this, "أدخل الاسم ورقم واحد", Toast.LENGTH_SHORT).show() }
         }
 
-        // ================= 4. الحسابات (تعديل بضغطة / حذف بضغطة مطولة) =================
+        // ================= 3. الحسابات =================
         tvTotalDebt = findViewById(R.id.tv_total_debt) as TextView
         val inputTransCustomer = findViewById(R.id.input_trans_customer) as AutoCompleteTextView
         val rbDebt = findViewById(R.id.rb_debt) as RadioButton
@@ -218,35 +166,41 @@ class MainActivity : AppCompatActivity() {
         val recyclerTransactions = findViewById(R.id.recycler_transactions) as RecyclerView
 
         inputTransCustomer.setOnClickListener { inputTransCustomer.showDropDown() }
-        inputTransCustomer.setOnFocusChangeListener { _, hasFocus -> if (hasFocus) inputTransCustomer.showDropDown() }
         autoAdapterTrans = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, customerNamesList)
         inputTransCustomer.setAdapter(autoAdapterTrans)
 
         recyclerTransactions.layoutManager = LinearLayoutManager(this)
-        transactionAdapter = TransactionAdapter(transactionList, { transToEdit ->
-            // دالة التعديل للحركة
-            showEditTransactionDialog(transToEdit)
-        }, { transToDelete ->
-            val builder = AlertDialog.Builder(this)
-            builder.setTitle("حذف الحركة").setMessage("هل تريد حذف الحركة (${transToDelete.amount}) العائدة لـ ${transToDelete.customerName}؟")
-            builder.setPositiveButton("حذف") { _, _ -> if (dbHelper.deleteTransaction(transToDelete.id)) { Toast.makeText(this, "تم حذف الحركة", Toast.LENGTH_SHORT).show(); loadAllData() } }
-            builder.setNegativeButton("إلغاء", null).show()
+        transactionAdapter = TransactionAdapter(transactionList, 
+        onEdit = { trans -> showEditTransactionDialog(trans) },
+        onDelete = { trans ->
+            AlertDialog.Builder(this).setTitle("حذف الحركة").setMessage("تأكيد حذف الحركة العائدة لـ ${trans.customerName}؟").setPositiveButton("حذف") { _, _ ->
+                if (dbHelper.deleteTransaction(trans.id)) { Toast.makeText(this, "تم الحذف", Toast.LENGTH_SHORT).show(); loadAllData() }
+            }.setNegativeButton("إلغاء", null).show()
         })
         recyclerTransactions.adapter = transactionAdapter
 
         btnSaveTrans.setOnClickListener {
             val name = inputTransCustomer.text.toString().trim()
             val amountStr = inputTransAmount.text.toString().trim()
-            val note = inputTransNote.text.toString().trim()
-            val type = if (rbDebt.isChecked) 1 else 2
             if (name.isNotEmpty() && amountStr.isNotEmpty()) {
-                val amount = amountStr.toIntOrNull() ?: 0
-                if (dbHelper.addTransaction(name, amount, type, note)) {
-                    Toast.makeText(this, "تم تسجيل الحركة", Toast.LENGTH_SHORT).show()
-                    inputTransCustomer.text.clear(); inputTransAmount.text.clear(); inputTransNote.text.clear()
-                    loadAllData()
+                if (dbHelper.addTransaction(name, amountStr.toIntOrNull() ?: 0, if (rbDebt.isChecked) 1 else 2, inputTransNote.text.toString().trim())) {
+                    inputTransCustomer.text.clear(); inputTransAmount.text.clear(); inputTransNote.text.clear(); loadAllData()
                 }
             } else { Toast.makeText(this, "أدخل الاسم والمبلغ", Toast.LENGTH_SHORT).show() }
+        }
+
+        // ================= 4. الإعدادات =================
+        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        val inputSettingsPin = findViewById(R.id.input_settings_pin) as EditText
+        val inputSettingsSyrAmounts = findViewById(R.id.input_settings_syr_amounts) as EditText
+        val inputSettingsMtnAmounts = findViewById(R.id.input_settings_mtn_amounts) as EditText
+        inputSettingsPin.setText(prefs.getString("default_pin", ""))
+        inputSettingsSyrAmounts.setText(prefs.getString("syr_amounts", "1000:1300, 2000:2600, 5000:6500"))
+        inputSettingsMtnAmounts.setText(prefs.getString("mtn_amounts", "1000:1250, 2000:2500, 5000:6250"))
+
+        findViewById<Button>(R.id.btn_save_settings).setOnClickListener {
+            prefs.edit().putString("default_pin", inputSettingsPin.text.toString().trim()).putString("syr_amounts", inputSettingsSyrAmounts.text.toString().trim()).putString("mtn_amounts", inputSettingsMtnAmounts.text.toString().trim()).apply()
+            Toast.makeText(this, "تم الحفظ", Toast.LENGTH_SHORT).show(); updateSpinner(rbSyr.isChecked)
         }
 
         loadAllData()
@@ -255,70 +209,36 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showEditCustomerDialog(customer: Customer) {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_edit_customer, null)
-        val builder = AlertDialog.Builder(this)
-        builder.setView(dialogView)
-        val dialog = builder.create()
-
-        val inputName = dialogView.findViewById(R.id.input_edit_cust_name) as EditText
-        val inputSyr = dialogView.findViewById(R.id.input_edit_cust_syr) as EditText
-        val inputMtn = dialogView.findViewById(R.id.input_edit_cust_mtn) as EditText
-        val btnSave = dialogView.findViewById(R.id.btn_save_edit_cust) as Button
-
-        inputName.setText(customer.name)
-        inputSyr.setText(customer.phoneSyriatel)
-        inputMtn.setText(customer.phoneMtn)
-
-        btnSave.setOnClickListener {
-            val name = inputName.text.toString().trim()
-            val syr = inputSyr.text.toString().trim()
-            val mtn = inputMtn.text.toString().trim()
-            if (name.isNotEmpty() && (syr.isNotEmpty() || mtn.isNotEmpty())) {
-                if (dbHelper.updateCustomer(customer.id, name, syr, mtn)) {
-                    Toast.makeText(this, "تم تعديل الزبون بنجاح", Toast.LENGTH_SHORT).show()
-                    loadAllData()
-                    dialog.dismiss()
-                }
-            } else {
-                Toast.makeText(this, "أدخل الاسم ورقم واحد على الأقل", Toast.LENGTH_SHORT).show()
-            }
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_cust, null)
+        val dialog = AlertDialog.Builder(this).setView(view).create()
+        val inputName = view.findViewById(R.id.edit_cust_name) as EditText
+        val inputSyr = view.findViewById(R.id.edit_cust_syr) as EditText
+        val inputMtn = view.findViewById(R.id.edit_cust_mtn) as EditText
+        inputName.setText(customer.name); inputSyr.setText(customer.phoneSyriatel); inputMtn.setText(customer.phoneMtn)
+        (view.findViewById(R.id.btn_update_cust) as Button).setOnClickListener {
+            val n = inputName.text.toString().trim(); val s = inputSyr.text.toString().trim(); val m = inputMtn.text.toString().trim()
+            if (n.isNotEmpty() && (s.isNotEmpty() || m.isNotEmpty())) {
+                if (dbHelper.updateCustomer(customer.id, customer.name, n, s, m)) { Toast.makeText(this, "تم التعديل بنجاح", Toast.LENGTH_SHORT).show(); loadAllData(); dialog.dismiss() }
+            } else { Toast.makeText(this, "البيانات غير مكتملة", Toast.LENGTH_SHORT).show() }
         }
         dialog.show()
     }
 
     private fun showEditTransactionDialog(trans: Transaction) {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_edit_transaction, null)
-        val builder = AlertDialog.Builder(this)
-        builder.setView(dialogView)
-        val dialog = builder.create()
-
-        val tvName = dialogView.findViewById(R.id.tv_edit_trans_name) as TextView
-        val rbDebt = dialogView.findViewById(R.id.rb_edit_debt) as RadioButton
-        val rbPayment = dialogView.findViewById(R.id.rb_edit_payment) as RadioButton
-        val inputAmount = dialogView.findViewById(R.id.input_edit_trans_amount) as EditText
-        val inputNote = dialogView.findViewById(R.id.input_edit_trans_note) as EditText
-        val btnSave = dialogView.findViewById(R.id.btn_save_edit_trans) as Button
-
-        tvName.text = "الحساب: ${trans.customerName}"
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_trans, null)
+        val dialog = AlertDialog.Builder(this).setView(view).create()
+        (view.findViewById(R.id.tv_edit_trans_name) as TextView).text = "الزبون: ${trans.customerName}"
+        val rbDebt = view.findViewById(R.id.rb_edit_debt) as RadioButton
+        val rbPayment = view.findViewById(R.id.rb_edit_payment) as RadioButton
         if (trans.type == 1) rbDebt.isChecked = true else rbPayment.isChecked = true
-        inputAmount.setText(trans.amount.toString())
-        inputNote.setText(trans.note)
-
-        btnSave.setOnClickListener {
-            val amountStr = inputAmount.text.toString().trim()
-            val note = inputNote.text.toString().trim()
-            val type = if (rbDebt.isChecked) 1 else 2
-            
-            if (amountStr.isNotEmpty()) {
-                val amount = amountStr.toIntOrNull() ?: 0
-                if (dbHelper.updateTransaction(trans.id, amount, type, note)) {
-                    Toast.makeText(this, "تم تعديل الحركة بنجاح", Toast.LENGTH_SHORT).show()
-                    loadAllData()
-                    dialog.dismiss()
-                }
-            } else {
-                Toast.makeText(this, "الرجاء إدخال المبلغ", Toast.LENGTH_SHORT).show()
-            }
+        val inputAmount = view.findViewById(R.id.edit_trans_amount) as EditText
+        val inputNote = view.findViewById(R.id.edit_trans_note) as EditText
+        inputAmount.setText(trans.amount.toString()); inputNote.setText(trans.note)
+        (view.findViewById(R.id.btn_update_trans) as Button).setOnClickListener {
+            val a = inputAmount.text.toString().trim().toIntOrNull() ?: 0
+            if (a > 0) {
+                if (dbHelper.updateTransaction(trans.id, a, if (rbDebt.isChecked) 1 else 2, inputNote.text.toString().trim())) { Toast.makeText(this, "تم التعديل بنجاح", Toast.LENGTH_SHORT).show(); loadAllData(); dialog.dismiss() }
+            } else { Toast.makeText(this, "أدخل مبلغ صحيح", Toast.LENGTH_SHORT).show() }
         }
         dialog.show()
     }
@@ -328,9 +248,7 @@ class MainActivity : AppCompatActivity() {
         customerNamesList.clear(); customerNamesList.addAll(customerList.map { it.name })
         autoAdapterTransfer.notifyDataSetChanged(); autoAdapterTrans.notifyDataSetChanged()
         transactionList.clear(); transactionList.addAll(dbHelper.getAllTransactions()); transactionAdapter.notifyDataSetChanged()
-        
-        val total = dbHelper.getTotalDebt()
-        tvTotalDebt.text = "${NumberFormat.getNumberInstance(Locale.US).format(total)} ل.س"
+        tvTotalDebt.text = "${NumberFormat.getNumberInstance(Locale.US).format(dbHelper.getTotalDebt())} ل.س"
     }
 
     private fun checkPermissionAndCall() {
@@ -338,29 +256,24 @@ class MainActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CALL_PHONE), CALL_REQUEST_CODE)
         } else { executeUSSD() }
     }
-
     private fun executeUSSD() {
-        if (pendingUssdCode.isNotEmpty()) {
-            val intent = Intent(Intent.ACTION_CALL)
-            intent.data = Uri.parse("tel:$pendingUssdCode")
-            startActivity(intent)
-            pendingUssdCode = ""
-        }
+        if (pendingUssdCode.isNotEmpty()) { startActivity(Intent(Intent.ACTION_CALL).apply { data = Uri.parse("tel:$pendingUssdCode") }); pendingUssdCode = "" }
     }
-
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == CALL_REQUEST_CODE && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) { executeUSSD() }
     }
 }
 
-class CustomerAdapter(private val customers: List<Customer>, private val dbHelper: DatabaseHelper, private val onItemClick: (Customer) -> Unit, private val onItemLongClick: (Customer) -> Unit) : RecyclerView.Adapter<CustomerAdapter.ViewHolder>() {
+class CustomerAdapter(private val customers: List<Customer>, private val dbHelper: DatabaseHelper, private val onEdit: (Customer) -> Unit, private val onDelete: (Customer) -> Unit) : RecyclerView.Adapter<CustomerAdapter.ViewHolder>() {
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvName = view.findViewById(R.id.tv_customer_name) as TextView
         val tvSyriatel = view.findViewById(R.id.tv_syriatel) as TextView
         val tvMtn = view.findViewById(R.id.tv_mtn) as TextView
         val tvInitial = view.findViewById(R.id.tv_initial) as TextView
         val tvBalance = view.findViewById(R.id.tv_customer_balance) as TextView
+        val btnEdit = view.findViewById(R.id.btn_edit_cust) as ImageView
+        val btnDelete = view.findViewById(R.id.btn_delete_cust) as ImageView
     }
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_customer, parent, false))
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
@@ -369,42 +282,35 @@ class CustomerAdapter(private val customers: List<Customer>, private val dbHelpe
         holder.tvSyriatel.text = if (customer.phoneSyriatel.isNotEmpty()) "Syr: ${customer.phoneSyriatel}" else "Syr: -"
         holder.tvMtn.text = if (customer.phoneMtn.isNotEmpty()) "MTN: ${customer.phoneMtn}" else "MTN: -"
         if (customer.name.isNotEmpty()) holder.tvInitial.text = customer.name.take(1)
-        
         val balance = dbHelper.getCustomerBalance(customer.name)
         holder.tvBalance.text = NumberFormat.getNumberInstance(Locale.US).format(balance)
-        if(balance < 0) holder.tvBalance.setTextColor(Color.parseColor("#388E3C")) else holder.tvBalance.setTextColor(Color.parseColor("#FF6B00"))
-
-        holder.itemView.setOnClickListener { onItemClick(customer) }
-        holder.itemView.setOnLongClickListener { onItemLongClick(customer); true }
+        holder.tvBalance.setTextColor(if(balance < 0) Color.parseColor("#388E3C") else Color.parseColor("#FF6B00"))
+        
+        holder.btnEdit.setOnClickListener { onEdit(customer) }
+        holder.btnDelete.setOnClickListener { onDelete(customer) }
     }
     override fun getItemCount() = customers.size
 }
 
-class TransactionAdapter(private val transactions: List<Transaction>, private val onItemClick: (Transaction) -> Unit, private val onItemLongClick: (Transaction) -> Unit) : RecyclerView.Adapter<TransactionAdapter.ViewHolder>() {
+class TransactionAdapter(private val transactions: List<Transaction>, private val onEdit: (Transaction) -> Unit, private val onDelete: (Transaction) -> Unit) : RecyclerView.Adapter<TransactionAdapter.ViewHolder>() {
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvName = view.findViewById(R.id.tv_trans_name) as TextView
         val tvNote = view.findViewById(R.id.tv_trans_note) as TextView
         val tvAmount = view.findViewById(R.id.tv_trans_amount) as TextView
         val tvType = view.findViewById(R.id.tv_trans_type) as TextView
+        val btnEdit = view.findViewById(R.id.btn_edit_trans) as ImageView
+        val btnDelete = view.findViewById(R.id.btn_delete_trans) as ImageView
     }
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_transaction, parent, false))
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val trans = transactions[position]
-        holder.tvName.text = trans.customerName
-        holder.tvNote.text = trans.note
+        holder.tvName.text = trans.customerName; holder.tvNote.text = trans.note
         holder.tvAmount.text = "${NumberFormat.getNumberInstance(Locale.US).format(trans.amount)}"
-        if (trans.type == 1) {
-            holder.tvType.text = "دين"
-            holder.tvType.setTextColor(Color.parseColor("#D32F2F"))
-            holder.tvAmount.setTextColor(Color.parseColor("#D32F2F"))
-        } else {
-            holder.tvType.text = "دفعة"
-            holder.tvType.setTextColor(Color.parseColor("#388E3C"))
-            holder.tvAmount.setTextColor(Color.parseColor("#388E3C"))
-        }
+        if (trans.type == 1) { holder.tvType.text = "دين"; holder.tvType.setTextColor(Color.parseColor("#D32F2F")); holder.tvAmount.setTextColor(Color.parseColor("#D32F2F")) } 
+        else { holder.tvType.text = "دفعة"; holder.tvType.setTextColor(Color.parseColor("#388E3C")); holder.tvAmount.setTextColor(Color.parseColor("#388E3C")) }
         
-        holder.itemView.setOnClickListener { onItemClick(trans) }
-        holder.itemView.setOnLongClickListener { onItemLongClick(trans); true }
+        holder.btnEdit.setOnClickListener { onEdit(trans) }
+        holder.btnDelete.setOnClickListener { onDelete(trans) }
     }
     override fun getItemCount() = transactions.size
 }

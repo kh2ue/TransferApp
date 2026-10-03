@@ -27,12 +27,21 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         return result != -1L
     }
 
-    fun updateCustomer(id: Int, name: String, phoneSyriatel: String, phoneMtn: String): Boolean {
+    // دالة ذكية لتعديل الزبون واسمه القديم بكل الحركات
+    fun updateCustomer(id: Int, oldName: String, newName: String, phoneSyriatel: String, phoneMtn: String): Boolean {
         val db = this.writableDatabase
-        val values = ContentValues().apply { put("Name", name); put("PhoneSyriatel", phoneSyriatel); put("PhoneMtn", phoneMtn) }
-        val result = db.update("Customers", values, "ID=?", arrayOf(id.toString()))
-        db.close()
-        return result > 0
+        db.beginTransaction()
+        try {
+            val values = ContentValues().apply { put("Name", newName); put("PhoneSyriatel", phoneSyriatel); put("PhoneMtn", phoneMtn) }
+            db.update("Customers", values, "ID=?", arrayOf(id.toString()))
+            if (oldName != newName) {
+                val transValues = ContentValues().apply { put("CustomerName", newName) }
+                db.update("Transactions", transValues, "CustomerName=?", arrayOf(oldName))
+            }
+            db.setTransactionSuccessful()
+            return true
+        } catch (e: Exception) { return false } 
+        finally { db.endTransaction(); db.close() }
     }
 
     fun deleteCustomer(id: Int): Boolean {
@@ -47,17 +56,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         val db = this.readableDatabase
         val cursor = db.rawQuery("SELECT * FROM Customers ORDER BY ID DESC", null)
         if (cursor.moveToFirst()) {
-            do {
-                list.add(Customer(
-                    cursor.getInt(cursor.getColumnIndexOrThrow("ID")),
-                    cursor.getString(cursor.getColumnIndexOrThrow("Name")),
-                    cursor.getString(cursor.getColumnIndexOrThrow("PhoneSyriatel")),
-                    cursor.getString(cursor.getColumnIndexOrThrow("PhoneMtn"))
-                ))
-            } while (cursor.moveToNext())
+            do { list.add(Customer(cursor.getInt(0), cursor.getString(1), cursor.getString(2), cursor.getString(3))) } while (cursor.moveToNext())
         }
-        cursor.close()
-        db.close()
+        cursor.close(); db.close()
         return list
     }
 
@@ -89,38 +90,27 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         val db = this.readableDatabase
         val cursor = db.rawQuery("SELECT * FROM Transactions ORDER BY ID DESC", null)
         if (cursor.moveToFirst()) {
-            do {
-                list.add(Transaction(
-                    cursor.getInt(cursor.getColumnIndexOrThrow("ID")),
-                    cursor.getString(cursor.getColumnIndexOrThrow("CustomerName")),
-                    cursor.getInt(cursor.getColumnIndexOrThrow("Amount")),
-                    cursor.getInt(cursor.getColumnIndexOrThrow("Type")),
-                    cursor.getString(cursor.getColumnIndexOrThrow("Note"))
-                ))
-            } while (cursor.moveToNext())
+            do { list.add(Transaction(cursor.getInt(0), cursor.getString(1), cursor.getInt(2), cursor.getInt(3), cursor.getString(4))) } while (cursor.moveToNext())
         }
-        cursor.close()
-        db.close()
+        cursor.close(); db.close()
         return list
     }
 
     fun getTotalDebt(): Int {
         var total = 0
         val db = this.readableDatabase
-        val cursor = db.rawQuery("SELECT SUM(CASE WHEN Type = 1 THEN Amount ELSE -Amount END) as Total FROM Transactions", null)
-        if (cursor.moveToFirst()) { total = cursor.getInt(cursor.getColumnIndexOrThrow("Total")) }
-        cursor.close()
-        db.close()
+        val cursor = db.rawQuery("SELECT SUM(CASE WHEN Type = 1 THEN Amount ELSE -Amount END) FROM Transactions", null)
+        if (cursor.moveToFirst()) { total = cursor.getInt(0) }
+        cursor.close(); db.close()
         return total
     }
 
     fun getCustomerBalance(customerName: String): Int {
         var total = 0
         val db = this.readableDatabase
-        val cursor = db.rawQuery("SELECT SUM(CASE WHEN Type = 1 THEN Amount ELSE -Amount END) as Total FROM Transactions WHERE CustomerName = ?", arrayOf(customerName))
-        if (cursor.moveToFirst()) { total = cursor.getInt(cursor.getColumnIndexOrThrow("Total")) }
-        cursor.close()
-        db.close()
+        val cursor = db.rawQuery("SELECT SUM(CASE WHEN Type = 1 THEN Amount ELSE -Amount END) FROM Transactions WHERE CustomerName = ?", arrayOf(customerName))
+        if (cursor.moveToFirst()) { total = cursor.getInt(0) }
+        cursor.close(); db.close()
         return total
     }
 }
