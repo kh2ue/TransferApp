@@ -1,5 +1,4 @@
-package com.pos.transferapp
-
+﻿package com.pos.transferapp
 import android.Manifest
 import android.app.DatePickerDialog
 import android.content.Context
@@ -19,6 +18,7 @@ import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -34,28 +34,21 @@ import java.util.Date
 import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
-
     lateinit var dbHelper: DatabaseHelper
     lateinit var customerAdapter: CustomerAdapter
     lateinit var transactionAdapter: TransactionAdapter
-    
     var customerList = ArrayList<Customer>()
     var transactionList = ArrayList<Transaction>()
     lateinit var autoAdapterTransfer: ArrayAdapter<String>
     lateinit var autoAdapterTrans: ArrayAdapter<String>
     var customerNamesList = ArrayList<String>()
     var currentQuickAmounts = ArrayList<Pair<String, String>>()
-    
-    // متغيرات للتحكم بإظهار القوائم
     var isCustListVisible = false
     var isTransListVisible = false
-
     var filterFromDate = ""
     var filterToDate = ""
-    
     private val CALL_REQUEST_CODE = 123
     private var pendingUssdCode = ""
-
     var waitingForTransferConfirm = false
     var lastTransName = ""
     var lastTransAmount = 0
@@ -89,6 +82,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val initialPrefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        if (initialPrefs.getBoolean("dark_mode", false)) { AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES) } else { AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO) }
         setContentView(R.layout.activity_main)
         dbHelper = DatabaseHelper(this)
 
@@ -120,7 +115,6 @@ class MainActivity : AppCompatActivity() {
         navDebt.setOnClickListener { layoutTransfer.visibility = View.GONE; layoutCustomers.visibility = View.GONE; layoutDebt.visibility = View.VISIBLE; layoutSettings.visibility = View.GONE; tvMainTitle.text = "الحسابات والدفعات"; updateNavUI("debt") }
         navSettings.setOnClickListener { layoutTransfer.visibility = View.GONE; layoutCustomers.visibility = View.GONE; layoutDebt.visibility = View.GONE; layoutSettings.visibility = View.VISIBLE; tvMainTitle.text = "الإعدادات"; updateNavUI("settings") }
 
-        // ================= 1. التحويل =================
         val inputTransferCustomer = findViewById(R.id.input_transfer_customer) as AutoCompleteTextView
         val rbSyr = findViewById(R.id.rb_syr) as RadioButton
         val rbMtn = findViewById(R.id.rb_mtn) as RadioButton
@@ -188,7 +182,6 @@ class MainActivity : AppCompatActivity() {
 
         btnShowPending.setOnClickListener { showPendingDialog() }
 
-        // ================= 2. الزبائن (برمجة الإظهار المخفي والبحث) =================
         val btnToggleCustomers = findViewById(R.id.btn_toggle_customers) as Button
         val recyclerCustomers = findViewById(R.id.recycler_customers) as RecyclerView
         val inputSearchCust = findViewById(R.id.input_search_cust) as EditText
@@ -210,7 +203,7 @@ class MainActivity : AppCompatActivity() {
 
         btnToggleSearchCust.setOnClickListener {
             inputSearchCust.visibility = if (inputSearchCust.visibility == View.VISIBLE) {
-                inputSearchCust.setText("") // مسح النص عند الإغلاق
+                inputSearchCust.setText("")
                 View.GONE
             } else View.VISIBLE
         }
@@ -220,8 +213,6 @@ class MainActivity : AppCompatActivity() {
                 val q = s.toString().lowercase()
                 customerAdapter.customers = if (q.isEmpty()) customerList else customerList.filter { it.name.lowercase().contains(q) }
                 customerAdapter.notifyDataSetChanged()
-                
-                // السر هنا: إذا كتب شي بالبحث، بتظهر القائمة إجبارياً.. إذا مسحه بترجع لحالة الزر (مخفية أو ظاهرة)
                 recyclerCustomers.visibility = if (q.isNotEmpty() || isCustListVisible) View.VISIBLE else View.GONE
             }
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -240,7 +231,6 @@ class MainActivity : AppCompatActivity() {
             } else { Toast.makeText(this, "أدخل الاسم ورقم", Toast.LENGTH_SHORT).show() }
         }
 
-        // ================= 3. الحسابات (برمجة الإخفاء والبحث للحركات) =================
         val btnToggleSummary = findViewById(R.id.btn_toggle_summary) as Button
         val layoutSummaryCards = findViewById(R.id.layout_summary_cards) as View
         btnToggleSummary.setOnClickListener {
@@ -272,7 +262,7 @@ class MainActivity : AppCompatActivity() {
 
         btnToggleSearchTrans.setOnClickListener {
             layoutSearchTrans.visibility = if (layoutSearchTrans.visibility == View.VISIBLE) {
-                inputSearchTrans.setText(""); filterFromDate = ""; filterToDate = "" // تصفير البحث عند الإغلاق
+                inputSearchTrans.setText(""); filterFromDate = ""; filterToDate = ""
                 View.GONE
             } else View.VISIBLE
         }
@@ -339,7 +329,6 @@ class MainActivity : AppCompatActivity() {
             } else { Toast.makeText(this, "أدخل الاسم والمبلغ", Toast.LENGTH_SHORT).show() }
         }
 
-        // ================= 4. الإعدادات =================
         val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
         val inputSyrPin = findViewById(R.id.input_settings_syr_pin) as EditText
         val inputSyrCode = findViewById(R.id.input_settings_syr_code) as EditText
@@ -361,6 +350,17 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "تم الحفظ", Toast.LENGTH_SHORT).show(); updateSpinner(rbSyr.isChecked)
         }
         findViewById<Button>(R.id.btn_share_backup).setOnClickListener { shareBackup() }
+
+        val switchDarkModeId = resources.getIdentifier("switch_dark_mode", "id", packageName)
+        if (switchDarkModeId != 0) {
+            val switchDarkMode = findViewById<Switch>(switchDarkModeId)
+            switchDarkMode.isChecked = prefs.getBoolean("dark_mode", false)
+            switchDarkMode.setOnCheckedChangeListener { _, isChecked ->
+                prefs.edit().putBoolean("dark_mode", isChecked).apply()
+                if (isChecked) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+                else AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+            }
+        }
 
         loadAllData()
         updateSpinner(true)
@@ -452,7 +452,7 @@ class MainActivity : AppCompatActivity() {
                 paint.color = Color.BLACK
                 canvas.drawText(NumberFormat.getNumberInstance(Locale.US).format(t.amount), 380f, y, paint)
                 var note = t.note
-                if (note.length > 18) note = note.substring(0, 18) + ".."
+                if (note.length > 18) note = note.substring(0, 18) + "..!"
                 canvas.drawText(note, startX, y, paint)
                 y += 30f
             }
@@ -640,7 +640,7 @@ class MainActivity : AppCompatActivity() {
         } else { executeUSSD() }
     }
     private fun executeUSSD() {
-        if (pendingUssdCode.isNotEmpty()) { startActivity(Intent(Intent.ACTION_CALL).apply { data = Uri.parse("tel:$pendingUssdCode") }); pendingUssdCode = "" }
+        if (pendingUssdCode.isNotEmpty()) { startActivity(Intent(Intent.ACTION_CALL).apply { data = Uri.parse("tel:" + pendingUssdCode) }); pendingUssdCode = "" }
     }
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)

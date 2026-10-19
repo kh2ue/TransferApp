@@ -1,10 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:layoutDirection="rtl" android:background="#F8F9FA">
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="#FF6B00" android:padding="24dp" android:orientation="vertical" android:gravity="center">
         <TextView android:id="@+id/tv_main_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="تحويل" android:textSize="22sp" android:textStyle="bold" android:textColor="#FFFFFF" />
     </LinearLayout>
     <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
-        
         <!-- 1. قسم التحويل -->
         <androidx.core.widget.NestedScrollView android:id="@+id/layout_transfer" android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="24dp">
@@ -26,7 +25,6 @@
                 <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_execute_transfer" android:layout_width="match_parent" android:layout_height="60dp" android:text="تحويل الرصيد" android:textSize="18sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" />
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
-
         <!-- 2. قسم الزبائن -->
         <androidx.core.widget.NestedScrollView android:id="@+id/layout_customers" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" android:fillViewport="true">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="24dp">
@@ -40,27 +38,19 @@
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
                 <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_save_customer" android:layout_width="match_parent" android:layout_height="55dp" android:text="حفظ الزبون" android:textSize="18sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" android:layout_marginBottom="24dp"/>
-                
-                <!-- استبدال النص بزر قابل للضغط -->
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="12dp">
                     <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_toggle_customers" android:layout_width="wrap_content" android:layout_height="40dp" android:text="الزبائن المسجلين ▼" android:textSize="14sp" android:textStyle="bold" android:background="#EEEEEE" android:textColor="#333333" android:paddingHorizontal="16dp"/>
                     <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
                     <ImageView android:id="@+id/btn_toggle_search_cust" android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_search" android:padding="4dp" android:background="?attr/selectableItemBackgroundBorderless" />
                 </LinearLayout>
-                
                 <EditText android:id="@+id/input_search_cust" android:layout_width="match_parent" android:layout_height="50dp" android:background="@drawable/bg_input_gray" android:hint="اكتب للبحث..." android:paddingStart="16dp" android:paddingEnd="16dp" android:textSize="16sp" android:textColor="#333333" android:layout_marginBottom="16dp" android:visibility="gone" android:gravity="right|center_vertical" android:textDirection="rtl"/>
-                
-                <!-- إضافة الإخفاء الافتراضي للقائمة -->
                 <androidx.recyclerview.widget.RecyclerView android:id="@+id/recycler_customers" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false" android:clipToPadding="false" android:paddingBottom="20dp" android:visibility="gone"/>
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
-
         <!-- 3. قسم الحسابات -->
         <androidx.core.widget.NestedScrollView android:id="@+id/layout_debt" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" android:fillViewport="true">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="24dp">
-                
                 <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_toggle_summary" android:layout_width="match_parent" android:layout_height="50dp" android:text="ملخص الحسابات ▼" android:textSize="16sp" android:textStyle="bold" android:background="#EEEEEE" android:textColor="#333333" android:layout_marginBottom="16dp"/>
-                
                 <LinearLayout android:id="@+id/layout_summary_cards" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
                     <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="15dp" app:cardElevation="2dp" android:layout_marginBottom="16dp" app:cardBackgroundColor="#E8F5E9">
                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="16dp" android:orientation="horizontal" android:weightSum="2">
@@ -82,7 +72,6 @@
                         </LinearLayout>
                     </androidx.cardview.widget.CardView>
                 </LinearLayout>
-
                 <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="15dp" app:cardElevation="2dp" android:layout_marginBottom="24dp" app:cardBackgroundColor="#FFFFFF">
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="استلام دفعة مالية" android:textSize="16sp" android:textStyle="bold" android:textColor="#388E3C" android:layout_marginBottom="12dp"/>
@@ -94,28 +83,29 @@
                         <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_save_trans" android:layout_width="match_parent" android:layout_height="50dp" android:text="حفظ الدفعة" android:textSize="16sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" android:layout_marginTop="16dp"/>
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
-
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="12dp">
                     <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_toggle_records" android:layout_width="wrap_content" android:layout_height="40dp" android:text="السجلات ▼" android:textSize="14sp" android:textStyle="bold" android:background="#EEEEEE" android:textColor="#333333" android:paddingHorizontal="16dp"/>
                     <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
                     <ImageView android:id="@+id/btn_toggle_search_trans" android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_search" android:padding="4dp" android:background="?attr/selectableItemBackgroundBorderless" />
                 </LinearLayout>
-
                 <LinearLayout android:id="@+id/layout_search_trans" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp" android:visibility="gone">
                     <EditText android:id="@+id/input_search_trans" android:layout_width="0dp" android:layout_weight="1" android:layout_height="50dp" android:background="@drawable/bg_input_gray" android:hint="بحث بالاسم..." android:paddingStart="16dp" android:paddingEnd="16dp" android:textSize="14sp" android:textColor="#333333" android:layout_marginEnd="8dp" android:gravity="right|center_vertical" android:textDirection="rtl"/>
                     <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_filter_date" android:layout_width="wrap_content" android:layout_height="50dp" android:text="تاريخ" android:textSize="14sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="#FFFFFF" android:paddingHorizontal="16dp"/>
                 </LinearLayout>
                 <TextView android:id="@+id/tv_active_date_filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="فلتر التاريخ: نشط" android:textSize="12sp" android:textColor="#FF6B00" android:layout_marginBottom="8dp" android:visibility="gone"/>
-                
-                <!-- إخفاء افتراضي للقائمة -->
                 <androidx.recyclerview.widget.RecyclerView android:id="@+id/recycler_transactions" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false" android:clipToPadding="false" android:paddingBottom="20dp" android:visibility="gone"/>
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
-
         <!-- 4. الإعدادات -->
         <ScrollView android:id="@+id/layout_settings" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone">
-            <!-- نفس القديم ومختصر للوضوح.. لم يتم التغيير عليه -->
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="24dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="المظهر (Appearance)" android:textSize="20sp" android:textStyle="bold" android:textColor="#2C3E50" android:layout_marginBottom="8dp"/>
+                <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="15dp" app:cardElevation="2dp" android:layout_marginBottom="24dp" app:cardBackgroundColor="#FFFFFF">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:padding="16dp" android:gravity="center_vertical">
+                        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="تفعيل الوضع الليلي" android:textColor="#333333" android:textSize="16sp" />
+                        <Switch android:id="@+id/switch_dark_mode" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="إعدادات التحويل للشبكات" android:textSize="20sp" android:textStyle="bold" android:textColor="#2C3E50" android:layout_marginBottom="20dp"/>
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="إعدادات سيريتل (SYRIATEL)" android:textSize="16sp" android:textStyle="bold" android:textColor="#D32F2F" android:layout_marginBottom="8dp"/>
                 <androidx.cardview.widget.CardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="15dp" app:cardElevation="2dp" android:layout_marginBottom="20dp" app:cardBackgroundColor="#FFFFFF">
@@ -146,7 +136,6 @@
         </ScrollView>
     </FrameLayout>
     <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#E0E0E0" />
-    <!-- شريط التنقل -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="65dp" android:orientation="horizontal" android:background="#FFFFFF" android:elevation="8dp">
         <LinearLayout android:id="@+id/nav_transfer" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:background="?android:attr/selectableItemBackground" android:clickable="true">
             <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_home" android:tint="#FF6B00"/>
