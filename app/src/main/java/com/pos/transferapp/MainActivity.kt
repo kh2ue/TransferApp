@@ -110,7 +110,6 @@ class MainActivity : AppCompatActivity() {
             Log.e("DatabaseBackup", "Could not access the backup file for sharing", error)
             Toast.makeText(this, "تعذر الوصول إلى النسخة الاحتياطية", Toast.LENGTH_LONG).show()
         }
-        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
