@@ -290,7 +290,7 @@ class MainActivity : AppCompatActivity() {
                 updateSpinner(position); inputTransferAmount.setText(""); inputTransferPrice.setText(""); validateTransferAmount()
                 layoutDirectActions.visibility = View.VISIBLE
                 btnDoneDebt.text = "تحويل / تنفيذ"
-                btnAddPending.text = "حفظ في المعلقات"
+                btnAddPending.text = "تعليق الطلب"
                 btnAddPending.visibility = View.VISIBLE
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
