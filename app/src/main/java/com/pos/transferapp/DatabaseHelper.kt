@@ -7,17 +7,26 @@ import android.database.sqlite.SQLiteOpenHelper
 data class Customer(val id: Int, val name: String, val phoneSyriatel: String, val phoneMtn: String)
 data class Transaction(val id: Int, val customerName: String, val amount: Int, val type: Int, val note: String, val date: String, val serviceType: String)
 data class PendingRequest(val id: Int, val customerName: String, val network: String, val amount: Int, val price: Int, val date: String, val serviceType: String)
+data class CompanyPurchase(val id: Int, val companyName: String, val amount: Int, val cost: Int, val date: String, val note: String)
+data class CompanyPayment(val id: Int, val companyName: String, val paidAmount: Int, val date: String, val note: String)
+data class SalesReport(val totalCredit: Int, val totalFinancial: Int, val count: Int)
 
-class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.db", null, 8) {
+class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.db", null, 9) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE Customers (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, PhoneSyriatel TEXT, PhoneMtn TEXT)")
         db.execSQL("CREATE TABLE Transactions (ID INTEGER PRIMARY KEY AUTOINCREMENT, CustomerName TEXT, Amount INTEGER, Type INTEGER, Note TEXT, Date TEXT, ServiceType TEXT)")
         db.execSQL("CREATE TABLE PendingRequests (ID INTEGER PRIMARY KEY AUTOINCREMENT, CustomerName TEXT, Network TEXT, Amount INTEGER, Price INTEGER, Date TEXT, ServiceType TEXT)")
+        db.execSQL("CREATE TABLE CompanyPurchases (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, Amount INTEGER, Cost INTEGER, Date TEXT, Note TEXT)")
+        db.execSQL("CREATE TABLE CompanyPayments (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, PaidAmount INTEGER, Date TEXT, Note TEXT)")
     }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 8) {
             try { db.execSQL("ALTER TABLE Transactions ADD COLUMN ServiceType TEXT DEFAULT ''") } catch (e: Exception) {}
             try { db.execSQL("ALTER TABLE PendingRequests ADD COLUMN ServiceType TEXT DEFAULT ''") } catch (e: Exception) {}
+        }
+        if (oldVersion < 9) {
+            try { db.execSQL("CREATE TABLE IF NOT EXISTS CompanyPurchases (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, Amount INTEGER, Cost INTEGER, Date TEXT, Note TEXT)") } catch (e: Exception) {}
+            try { db.execSQL("CREATE TABLE IF NOT EXISTS CompanyPayments (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, PaidAmount INTEGER, Date TEXT, Note TEXT)") } catch (e: Exception) {}
         }
     }
 
@@ -101,5 +110,67 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
             list.add(PendingRequest(cursor.getInt(0), cursor.getString(1), cursor.getString(2), cursor.getInt(3), cursor.getInt(4), cursor.getString(5), st))
         } while (cursor.moveToNext())
         cursor.close(); db.close(); return list
+    }
+
+    // --- Companies (Purchases & Payments) ---
+    fun addCompanyPurchase(name: String, amount: Int, cost: Int, note: String, date: String): Boolean {
+        val db = this.writableDatabase
+        val values = ContentValues().apply { put("CompanyName", name); put("Amount", amount); put("Cost", cost); put("Date", date); put("Note", note) }
+        val result = db.insert("CompanyPurchases", null, values)
+        db.close(); return result != -1L
+    }
+    fun addCompanyPayment(name: String, paidAmount: Int, note: String, date: String): Boolean {
+        val db = this.writableDatabase
+        val values = ContentValues().apply { put("CompanyName", name); put("PaidAmount", paidAmount); put("Date", date); put("Note", note) }
+        val result = db.insert("CompanyPayments", null, values)
+        db.close(); return result != -1L
+    }
+    fun getCompanyAvailableBalance(companyName: String): Int {
+        var purchased = 0; val db = this.readableDatabase
+        var cursor = db.rawQuery("SELECT SUM(Amount) FROM CompanyPurchases WHERE CompanyName=?", arrayOf(companyName))
+        if (cursor.moveToFirst()) purchased = cursor.getInt(0)
+        cursor.close()
+        var sold = 0
+        cursor = db.rawQuery("SELECT Note FROM Transactions WHERE ServiceType=? AND Type=1", arrayOf(companyName))
+        val regex = Regex("تحويل (\\\\d+)")
+        if (cursor.moveToFirst()) do {
+            val note = cursor.getString(0) ?: ""
+            val match = regex.find(note)
+            sold += match?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        } while (cursor.moveToNext())
+        cursor.close(); db.close()
+        return purchased - sold
+    }
+    fun getCompanyFinancialDebt(companyName: String): Int {
+        var cost = 0; var paid = 0; val db = this.readableDatabase
+        var cursor = db.rawQuery("SELECT SUM(Cost) FROM CompanyPurchases WHERE CompanyName=?", arrayOf(companyName))
+        if (cursor.moveToFirst()) cost = cursor.getInt(0)
+        cursor.close()
+        cursor = db.rawQuery("SELECT SUM(PaidAmount) FROM CompanyPayments WHERE CompanyName=?", arrayOf(companyName))
+        if (cursor.moveToFirst()) paid = cursor.getInt(0)
+        cursor.close(); db.close()
+        return cost - paid
+    }
+    fun getCompanySalesReport(companyName: String, fromDate: String, toDate: String): SalesReport {
+        var totalCredit = 0; var totalFinancial = 0; var count = 0; val db = this.readableDatabase
+        val query = "SELECT Amount, Note, Date FROM Transactions WHERE ServiceType=? AND Type=1"
+        val cursor = db.rawQuery(query, arrayOf(companyName))
+        val regex = Regex("تحويل (\\\\d+)")
+        if (cursor.moveToFirst()) do {
+            val date = cursor.getString(2) ?: ""
+            val dateStr = if (date.length >= 10) date.substring(0, 10) else date
+            var inRange = true
+            if (fromDate.isNotEmpty() && dateStr < fromDate) inRange = false
+            if (toDate.isNotEmpty() && dateStr > toDate) inRange = false
+            if (inRange) {
+                count++
+                totalFinancial += cursor.getInt(0)
+                val note = cursor.getString(1) ?: ""
+                val match = regex.find(note)
+                totalCredit += match?.groupValues?.get(1)?.toIntOrNull() ?: 0
+            }
+        } while (cursor.moveToNext())
+        cursor.close(); db.close()
+        return SalesReport(totalCredit, totalFinancial, count)
     }
 }
