@@ -50,13 +50,28 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         if (serviceName.isBlank() || amount <= 0L || price <= 0L) return false
         val db = writableDatabase
         return try {
-            val values = ContentValues().apply {
-                put("service_name", serviceName)
-                put("amount", amount)
-                put("price", price)
+            db.beginTransaction()
+            val existingId = db.rawQuery(
+                "SELECT id FROM ServiceCategories WHERE service_name=? AND amount=? ORDER BY id ASC LIMIT 1",
+                arrayOf(serviceName, amount.toString())
+            ).use { cursor ->
+                if (cursor.moveToFirst()) cursor.getInt(0) else null
             }
-            db.insert("ServiceCategories", null, values) != -1L
+            val saved = if (existingId != null) {
+                val values = ContentValues().apply { put("price", price) }
+                db.update("ServiceCategories", values, "id=?", arrayOf(existingId.toString())) > 0
+            } else {
+                val values = ContentValues().apply {
+                    put("service_name", serviceName)
+                    put("amount", amount)
+                    put("price", price)
+                }
+                db.insert("ServiceCategories", null, values) != -1L
+            }
+            if (saved) db.setTransactionSuccessful()
+            saved
         } finally {
+            if (db.inTransaction()) db.endTransaction()
             db.close()
         }
     }
@@ -65,13 +80,30 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         if (id <= 0 || serviceName.isBlank() || amount <= 0L || price <= 0L) return false
         val db = writableDatabase
         return try {
+            db.beginTransaction()
+            val duplicateId = db.rawQuery(
+                "SELECT id FROM ServiceCategories WHERE service_name=? AND amount=? AND id<>? ORDER BY id ASC LIMIT 1",
+                arrayOf(serviceName, amount.toString(), id.toString())
+            ).use { cursor ->
+                if (cursor.moveToFirst()) cursor.getInt(0) else null
+            }
+            if (duplicateId != null) {
+                val duplicateValues = ContentValues().apply { put("price", price) }
+                val updated = db.update("ServiceCategories", duplicateValues, "id=?", arrayOf(duplicateId.toString())) > 0
+                val deleted = db.delete("ServiceCategories", "id=?", arrayOf(id.toString())) > 0
+                if (updated && deleted) db.setTransactionSuccessful()
+                return updated && deleted
+            }
             val values = ContentValues().apply {
                 put("service_name", serviceName)
                 put("amount", amount)
                 put("price", price)
             }
-            db.update("ServiceCategories", values, "id=?", arrayOf(id.toString())) > 0
+            val updated = db.update("ServiceCategories", values, "id=?", arrayOf(id.toString())) > 0
+            if (updated) db.setTransactionSuccessful()
+            updated
         } finally {
+            if (db.inTransaction()) db.endTransaction()
             db.close()
         }
     }

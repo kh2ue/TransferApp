@@ -17,6 +17,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -172,6 +173,13 @@ class MainActivity : AppCompatActivity() {
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
+        val companyLogContent = findViewById<View>(R.id.layout_company_log_content)
+        val companyLogToggleIcon = findViewById<TextView>(R.id.tv_company_log_toggle_icon)
+        findViewById<View>(R.id.btn_toggle_company_log).setOnClickListener {
+            val expanded = companyLogContent.visibility != View.VISIBLE
+            companyLogContent.visibility = if (expanded) View.VISIBLE else View.GONE
+            companyLogToggleIcon.text = if (expanded) "▲" else "▼"
+        }
 
         fun updateNavUI(selected: String) {
             val primaryColor = ContextCompat.getColor(this@MainActivity, R.color.colorPrimary)
@@ -249,13 +257,27 @@ class MainActivity : AppCompatActivity() {
             updateQuickCategorySpinner(serviceIdx)
         }
 
+        fun hasCategoryPriceConflict(serviceName: String, amount: Long, price: Long): Boolean {
+            val savedCategory = dbHelper.getCategoriesByService(serviceName)
+                .firstOrNull { it.amount == amount }
+            return savedCategory != null && savedCategory.price != price
+        }
+
         inputTransferAmount.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
-                val amount = s?.toString()?.trim()?.toLongOrNull() ?: return
-                val serviceName = spinnerServiceType.selectedItem?.toString() ?: return
-                val category = dbHelper.getCategoriesByService(serviceName).firstOrNull { it.amount == amount }
-                if (category != null && inputTransferPrice.text.toString() != category.price.toString()) {
-                    inputTransferPrice.setText(category.price.toString())
+                val amount = s?.toString()?.trim()?.toLongOrNull()
+                val serviceName = spinnerServiceType.selectedItem?.toString()
+                val category = if (amount != null && serviceName != null) {
+                    dbHelper.getCategoriesByService(serviceName).firstOrNull { it.amount == amount }
+                } else {
+                    null
+                }
+                val suggestedPrice = category?.price?.toString().orEmpty()
+                if (inputTransferPrice.text.toString() != suggestedPrice) {
+                    inputTransferPrice.text.clear()
+                    if (suggestedPrice.isNotEmpty()) {
+                        inputTransferPrice.setText(suggestedPrice)
+                    }
                 }
             }
 
@@ -287,7 +309,7 @@ class MainActivity : AppCompatActivity() {
 
         fun applyTransactionFilters() {
             var filtered = transactionList.toList()
-            val q = (findViewById<EditText>(R.id.input_search_trans)).text.toString().lowercase()
+            val q = findViewById<AutoCompleteTextView>(R.id.input_search_trans).text.toString().lowercase()
             val filterSvcIdx = spinnerFilterService.selectedItemPosition
             if (q.isNotEmpty()) filtered = filtered.filter { it.customerName.lowercase().contains(q) }
             if (filterFromDate.isNotEmpty()) filtered = filtered.filter { it.date.take(10) >= filterFromDate }
@@ -327,6 +349,14 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             val serviceName = servicesArray[svcIdx]
+            if (hasCategoryPriceConflict(serviceName, amount, price)) {
+                Toast.makeText(
+                    this,
+                    "هذه الفئة مسجلة مسبقاً. لا يمكن تعديل سعرها من هنا، يرجى التعديل من إدارة الفئات في الإعدادات",
+                    Toast.LENGTH_LONG
+                ).show()
+                return@setOnClickListener
+            }
             val available = dbHelper.getCompanyAvailableBalance(serviceName)
             if (amount > available) {
                 Toast.makeText(this, "لا يمكن التنفيذ؛ رصيد الشركة الحالي غير كافٍ", Toast.LENGTH_LONG).show()
@@ -339,9 +369,7 @@ class MainActivity : AppCompatActivity() {
                 if (dbHelper.addTransaction(selectedName, price.toInt(), 1, note, getCurrentDateString(), serviceName, amount.toInt())) {
                     rememberQuickCategory(serviceName, amount, price)
                     Toast.makeText(this, "تم قيد $price ل.س كدين", Toast.LENGTH_SHORT).show()
-                    inputTransferCustomer.setText("")
-                    inputTransferAmount.setText("")
-                    inputTransferPrice.setText("")
+                    resetTransferUI()
                     loadAllData()
                 } else {
                     Toast.makeText(this, "تعذر تسجيل الحركة", Toast.LENGTH_LONG).show()
@@ -366,12 +394,39 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnAddPending.setOnClickListener {
-            val selectedName = inputTransferCustomer.text.toString().trim(); val amountStr = inputTransferAmount.text.toString().trim(); val priceStr = inputTransferPrice.text.toString().trim(); val svcIdx = spinnerServiceType.selectedItemPosition; val serviceName = servicesArray[svcIdx]
+            val selectedName = inputTransferCustomer.text.toString().trim()
+            val amountStr = inputTransferAmount.text.toString().trim()
+            val priceStr = inputTransferPrice.text.toString().trim()
+            val svcIdx = spinnerServiceType.selectedItemPosition
+            if (svcIdx !in servicesArray.indices) {
+                Toast.makeText(this, "اختر فئة صحيحة", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val serviceName = servicesArray[svcIdx]
             val customer = customerList.find { it.name == selectedName }
             if (customer == null) { Toast.makeText(this, "اختر زبون مسجل", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
             if (amountStr.isEmpty() || priceStr.isEmpty()) { Toast.makeText(this, "أدخل الرصيد والسعر", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
-            val price = priceStr.toIntOrNull() ?: 0; val amount = amountStr.toIntOrNull() ?: 0; val net = "Direct"
-            if (dbHelper.addPending(selectedName, net, amount, price, getCurrentDateString(), serviceName, amount)) { rememberQuickCategory(serviceName, amount.toLong(), price.toLong()); Toast.makeText(this, "تم الحفظ في المعلقات", Toast.LENGTH_SHORT).show(); inputTransferCustomer.setText(""); inputTransferAmount.setText(""); inputTransferPrice.setText(""); loadAllData() }
+            val priceValue = priceStr.toLongOrNull()
+            val amountValue = amountStr.toLongOrNull()
+            if (priceValue == null || amountValue == null ||
+                priceValue <= 0L || amountValue <= 0L ||
+                priceValue > Int.MAX_VALUE || amountValue > Int.MAX_VALUE
+            ) {
+                Toast.makeText(this, "أدخل رصيداً وسعراً صحيحين", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (hasCategoryPriceConflict(serviceName, amountValue, priceValue)) {
+                Toast.makeText(
+                    this,
+                    "هذه الفئة مسجلة مسبقاً. لا يمكن تعديل سعرها من هنا، يرجى التعديل من إدارة الفئات في الإعدادات",
+                    Toast.LENGTH_LONG
+                ).show()
+                return@setOnClickListener
+            }
+            val price = priceValue.toInt()
+            val amount = amountValue.toInt()
+            val net = "Direct"
+            if (dbHelper.addPending(selectedName, net, amount, price, getCurrentDateString(), serviceName, amount)) { rememberQuickCategory(serviceName, amount.toLong(), price.toLong()); Toast.makeText(this, "تم الحفظ في المعلقات", Toast.LENGTH_SHORT).show(); resetTransferUI(); loadAllData() }
             else { Toast.makeText(this, "تعذر حفظ الطلب؛ تحقق من الرصيد والسعر", Toast.LENGTH_LONG).show() }
         }
 
@@ -398,15 +453,46 @@ class MainActivity : AppCompatActivity() {
         btnToggleSummary.setOnClickListener { val isVisible = layoutSummaryCards.visibility == View.VISIBLE; layoutSummaryCards.visibility = if (isVisible) View.GONE else View.VISIBLE; btnToggleSummary.text = if (isVisible) "ملخص الحسابات ▼" else "ملخص الحسابات ▲" }
         val btnToggleRecords = findViewById(R.id.btn_toggle_records) as Button
         val recyclerTransactions = findViewById(R.id.recycler_transactions) as RecyclerView
-        val inputSearchTrans = findViewById(R.id.input_search_trans) as EditText
+        val inputSearchTrans = findViewById<AutoCompleteTextView>(R.id.input_search_trans)
+        val recordsContent = findViewById<ViewGroup>(R.id.layout_records_content)
         val btnFilterDate = findViewById(R.id.btn_filter_date) as Button
         val btnToggleSearchTrans = findViewById(R.id.btn_toggle_search_trans) as ImageView
         val layoutSearchTrans = findViewById(R.id.layout_search_trans) as View
         recyclerTransactions.layoutManager = LinearLayoutManager(this)
         transactionAdapter = TransactionAdapter(transactionList, onEdit = { trans -> showEditTransactionDialog(trans) }, onDelete = { trans -> AlertDialog.Builder(this).setTitle("حذف").setMessage("تأكيد الحذف؟").setPositiveButton("نعم") { _, _ -> if (dbHelper.deleteTransaction(trans.id)) loadAllData() }.setNegativeButton("إلغاء", null).show() })
         recyclerTransactions.adapter = transactionAdapter
-        btnToggleRecords.setOnClickListener { isTransListVisible = !isTransListVisible; btnToggleRecords.text = if (isTransListVisible) "السجلات ▲" else "السجلات ▼"; val hasSearch = inputSearchTrans.text.isNotEmpty() || filterFromDate.isNotEmpty() || filterToDate.isNotEmpty() || spinnerFilterService.selectedItemPosition > 0; recyclerTransactions.visibility = if (isTransListVisible || hasSearch) View.VISIBLE else View.GONE }
-        btnToggleSearchTrans.setOnClickListener { layoutSearchTrans.visibility = if (layoutSearchTrans.visibility == View.VISIBLE) { inputSearchTrans.setText(""); filterFromDate = ""; filterToDate = ""; spinnerFilterService.setSelection(0); View.GONE } else View.VISIBLE }
+        btnToggleRecords.setOnClickListener {
+            isTransListVisible = !isTransListVisible
+            recordsContent.visibility = if (isTransListVisible) View.VISIBLE else View.GONE
+            btnToggleRecords.text = if (isTransListVisible) "السجلات ▲" else "السجلات ▼"
+            if (isTransListVisible) {
+                applyTransactionFilters()
+            } else {
+                inputSearchTrans.text.clear()
+                filterFromDate = ""
+                filterToDate = ""
+                spinnerFilterService.setSelection(0)
+                layoutSearchTrans.visibility = View.GONE
+                findViewById<TextView>(R.id.tv_active_date_filter).visibility = View.GONE
+                applyTransactionFilters()
+                inputSearchTrans.clearFocus()
+                (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+                    .hideSoftInputFromWindow(inputSearchTrans.windowToken, 0)
+            }
+        }
+        btnToggleSearchTrans.setOnClickListener {
+            layoutSearchTrans.visibility =
+                if (layoutSearchTrans.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+            if (layoutSearchTrans.visibility == View.GONE) {
+                inputSearchTrans.text.clear()
+                filterFromDate = ""
+                filterToDate = ""
+                spinnerFilterService.setSelection(0)
+                applyTransactionFilters()
+            } else {
+                inputSearchTrans.requestFocus()
+            }
+        }
         inputSearchTrans.addTextChangedListener(object : TextWatcher { override fun afterTextChanged(s: Editable?) { applyTransactionFilters() }; override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}; override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {} })
         btnFilterDate.setOnClickListener {
             val view = LayoutInflater.from(this).inflate(R.layout.dialog_date_filter, null); val dialog = AlertDialog.Builder(this).setView(view).create(); val tvTitle = view.findViewById<TextView>(R.id.tv_dialog_title); tvTitle.text = "فلترة حسب التاريخ"; val btnFrom = view.findViewById(R.id.btn_pick_from) as Button; val btnTo = view.findViewById(R.id.btn_pick_to) as Button; var tempFrom = filterFromDate; var tempTo = filterToDate; if (tempFrom.isNotEmpty()) btnFrom.text = "من تاريخ: " + tempFrom; if (tempTo.isNotEmpty()) btnTo.text = "إلى تاريخ: " + tempTo
@@ -428,15 +514,20 @@ class MainActivity : AppCompatActivity() {
         inputSyrCode.setText(prefs.getString("syr_code", "*150*رقم*مبلغ*رمز#"))
         inputMtnPin.setText(prefs.getString("mtn_pin", ""))
         inputMtnCode.setText(prefs.getString("mtn_code", "*150*رقم*مبلغ*رمز#"))
-        findViewById<Button>(R.id.btn_save_settings).setOnClickListener {
-            prefs.edit()
-                .putString("syr_pin", inputSyrPin.text.toString().trim())
-                .putString("syr_code", inputSyrCode.text.toString().trim())
-                .putString("mtn_pin", inputMtnPin.text.toString().trim())
-                .putString("mtn_code", inputMtnCode.text.toString().trim())
-                .apply()
-            Toast.makeText(this, "تم الحفظ", Toast.LENGTH_SHORT).show()
+        fun saveSettingOnChange(input: EditText, key: String) {
+            input.addTextChangedListener(object : TextWatcher {
+                override fun afterTextChanged(s: Editable?) {
+                    prefs.edit().putString(key, s?.toString().orEmpty()).apply()
+                }
+
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            })
         }
+        saveSettingOnChange(inputSyrPin, "syr_pin")
+        saveSettingOnChange(inputSyrCode, "syr_code")
+        saveSettingOnChange(inputMtnPin, "mtn_pin")
+        saveSettingOnChange(inputMtnCode, "mtn_code")
         findViewById<Button>(R.id.btn_manage_categories).setOnClickListener {
             showManageCategoriesDialog { updateSpinner(spinnerServiceType.selectedItemPosition) }
         }
@@ -489,13 +580,24 @@ class MainActivity : AppCompatActivity() {
 
     private fun rememberQuickCategory(serviceName: String, amount: Long, price: Long) {
         if (amount <= 0L || price <= 0L) return
-        if (dbHelper.getCategoriesByService(serviceName).any { it.amount == amount }) return
-        if (!dbHelper.addCategory(serviceName, amount, price)) return
+        val existingCategory = dbHelper.getCategoriesByService(serviceName).firstOrNull { it.amount == amount }
+        val saved = if (existingCategory == null) {
+            dbHelper.addCategory(serviceName, amount, price)
+        } else {
+            dbHelper.updateCategory(existingCategory.id, serviceName, amount, price)
+        }
+        if (!saved) return
 
         val serviceSpinner = findViewById<Spinner>(R.id.spinner_service_type)
         if (serviceSpinner.selectedItem?.toString() == serviceName) {
             updateQuickCategorySpinner(serviceSpinner.selectedItemPosition)
         }
+    }
+
+    private fun resetTransferUI() {
+        findViewById<EditText>(R.id.input_transfer_amount).text.clear()
+        findViewById<EditText>(R.id.input_transfer_price).text.clear()
+        findViewById<Spinner>(R.id.spinner_quick_amounts).setSelection(0)
     }
 
     private fun showManageCategoriesDialog(onCategoriesChanged: () -> Unit) {
@@ -1135,9 +1237,7 @@ class MainActivity : AppCompatActivity() {
             operationResolved = true
             executingPendingId = -1
             transferConfirmationDialogVisible = false
-            findViewById<AutoCompleteTextView>(R.id.input_transfer_customer).setText("")
-            findViewById<EditText>(R.id.input_transfer_amount).setText("")
-            findViewById<EditText>(R.id.input_transfer_price).setText("")
+            resetTransferUI()
             loadAllData()
             Toast.makeText(this, "تم حفظ العملية في المعلقات للمراجعة لاحقاً", Toast.LENGTH_LONG).show()
             return true
@@ -1171,7 +1271,7 @@ class MainActivity : AppCompatActivity() {
             rememberQuickCategory(lastServiceType, lastTransAmount.toLong(), lastTransPrice.toLong())
             operationResolved = true
             Toast.makeText(this, "تم قيد " + lastTransPrice + " ل.س كدين", Toast.LENGTH_SHORT).show()
-            findViewById<EditText>(R.id.input_transfer_amount).setText("")
+            resetTransferUI()
             executingPendingId = -1
             transferConfirmationDialogVisible = false
             loadAllData()
@@ -1298,6 +1398,11 @@ class MainActivity : AppCompatActivity() {
         (findViewById(R.id.input_transfer_customer) as AutoCompleteTextView).setAdapter(autoAdapterTransfer)
         autoAdapterTrans = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, customerNamesList)
         (findViewById(R.id.input_trans_customer) as AutoCompleteTextView).setAdapter(autoAdapterTrans)
+        val inputSearchTrans = findViewById<AutoCompleteTextView>(R.id.input_search_trans)
+        inputSearchTrans.setAdapter(
+            ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, customerNamesList.toList())
+        )
+        inputSearchTrans.threshold = 1
         transactionList.clear()
         transactionList.addAll(dbHelper.getAllTransactions())
         val todayStr = SimpleDateFormat("yyyy/MM/dd", Locale.US).format(Date())
@@ -1309,7 +1414,7 @@ class MainActivity : AppCompatActivity() {
         (findViewById(R.id.tv_total_debt) as TextView).text = NumberFormat.getNumberInstance(Locale.US).format(dbHelper.getTotalDebt()) + " ل.س"
         val pendingCount = dbHelper.getAllPending().size
         (findViewById(R.id.btn_show_pending) as Button).text = "الطلبات المعلقة ($pendingCount)"
-        val qTrans = (findViewById(R.id.input_search_trans) as EditText).text.toString().lowercase()
+        val qTrans = inputSearchTrans.text.toString().lowercase()
         var filteredTrans = transactionList.toList()
         val filterSvcIdx = findViewById<Spinner>(R.id.spinner_filter_service).selectedItemPosition
         if (qTrans.isNotEmpty()) filteredTrans = filteredTrans.filter { it.customerName.lowercase().contains(qTrans) }
