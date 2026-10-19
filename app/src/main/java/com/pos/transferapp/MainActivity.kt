@@ -47,7 +47,7 @@ class MainActivity : AppCompatActivity() {
     lateinit var autoAdapterTransfer: ArrayAdapter<String>
     lateinit var autoAdapterTrans: ArrayAdapter<String>
     var customerNamesList = ArrayList<String>()
-    var currentQuickAmounts = ArrayList<Pair<String, String>>()
+    var currentQuickAmounts = ArrayList<ServiceCategory>()
     var isCustListVisible = false
     var isTransListVisible = false
     var filterFromDate = ""
@@ -130,6 +130,7 @@ class MainActivity : AppCompatActivity() {
         }
         setContentView(R.layout.activity_main)
         dbHelper = DatabaseHelper(this)
+        migrateLegacyCategories(initialPrefs)
         DatabaseBackup.scheduleDaily(this)
         val tvMainTitle = findViewById(R.id.tv_main_title) as TextView
         val layoutTransfer = findViewById(R.id.layout_transfer) as View
@@ -244,34 +245,23 @@ class MainActivity : AppCompatActivity() {
         })
 
         fun updateSpinner(serviceIdx: Int) {
-            val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
-            val key = amountKeys[serviceIdx]
-            val defaultVal = if (serviceIdx == 0) "1000:1300, 2000:2600" else if (serviceIdx == 1) "1000:1250, 1500:1900" else ""
-            val raw = prefs.getString(key, defaultVal)
-            currentQuickAmounts = ArrayList()
-            raw?.split(",")?.forEach { item ->
-                val parts = item.trim().split(":")
-                if (parts.size >= 2) currentQuickAmounts.add(Pair(parts[0].trim(), parts[1].trim()))
-                else if (parts.size == 1 && parts[0].trim().isNotEmpty()) currentQuickAmounts.add(Pair(parts[0].trim(), parts[0].trim()))
-            }
-            val displayList = ArrayList<String>().apply { add("اختر الفئة...") }
-            currentQuickAmounts.forEach { displayList.add("مبلغ: " + it.first + " | التكلفة: " + it.second + " ل.س") }
-            spinnerQuickAmounts.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, displayList)
+            if (serviceIdx !in servicesArray.indices) return
+            updateQuickCategorySpinner(serviceIdx)
         }
 
-        fun checkAndSaveQuickAmount(amount: String, price: String, serviceIndex: Int) {
-            if (amount.isEmpty() || price.isEmpty()) return
-            val exists = currentQuickAmounts.any { it.first == amount && it.second == price }
-            if (!exists) {
-                val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
-                val key = amountKeys[serviceIndex]
-                val currentStr = prefs.getString(key, "") ?: ""
-                val newPair = amount + ":" + price
-                val newStr = if (currentStr.isEmpty()) newPair else currentStr + ", " + newPair
-                prefs.edit().putString(key, newStr).apply()
-                updateSpinner(serviceIndex)
+        inputTransferAmount.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                val amount = s?.toString()?.trim()?.toLongOrNull() ?: return
+                val serviceName = spinnerServiceType.selectedItem?.toString() ?: return
+                val category = dbHelper.getCategoriesByService(serviceName).firstOrNull { it.amount == amount }
+                if (category != null && inputTransferPrice.text.toString() != category.price.toString()) {
+                    inputTransferPrice.setText(category.price.toString())
+                }
             }
-        }
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
 
         spinnerServiceType.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -284,7 +274,14 @@ class MainActivity : AppCompatActivity() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
         spinnerQuickAmounts.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { if (position > 0) { inputTransferAmount.setText(currentQuickAmounts[position - 1].first); inputTransferPrice.setText(currentQuickAmounts[position - 1].second) }; validateTransferAmount() }
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (position > 0 && position - 1 in currentQuickAmounts.indices) {
+                    val category = currentQuickAmounts[position - 1]
+                    inputTransferAmount.setText(category.amount.toString())
+                    inputTransferPrice.setText(category.price.toString())
+                }
+                validateTransferAmount()
+            }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
@@ -340,6 +337,7 @@ class MainActivity : AppCompatActivity() {
             if (svcIdx > 1) {
                 val note = "تحويل $amount ($serviceName)"
                 if (dbHelper.addTransaction(selectedName, price.toInt(), 1, note, getCurrentDateString(), serviceName, amount.toInt())) {
+                    rememberQuickCategory(serviceName, amount, price)
                     Toast.makeText(this, "تم قيد $price ل.س كدين", Toast.LENGTH_SHORT).show()
                     inputTransferCustomer.setText("")
                     inputTransferAmount.setText("")
@@ -354,7 +352,6 @@ class MainActivity : AppCompatActivity() {
             val isSyr = svcIdx == 0
             val targetPhone = if (isSyr) customer.phoneSyriatel else customer.phoneMtn
             if (targetPhone.isEmpty()) { Toast.makeText(this, "لا يوجد رقم للشبكة", Toast.LENGTH_LONG).show(); return@setOnClickListener }
-            checkAndSaveQuickAmount(amountStr, priceStr, svcIdx)
             val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
             val pin = if(isSyr) prefs.getString("syr_pin", "0000") else prefs.getString("mtn_pin", "0000")
             val codeTemplate = if(isSyr) prefs.getString("syr_code", "*150*رقم*مبلغ*رمز#") else prefs.getString("mtn_code", "*150*رقم*مبلغ*رمز#")
@@ -373,9 +370,8 @@ class MainActivity : AppCompatActivity() {
             val customer = customerList.find { it.name == selectedName }
             if (customer == null) { Toast.makeText(this, "اختر زبون مسجل", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
             if (amountStr.isEmpty() || priceStr.isEmpty()) { Toast.makeText(this, "أدخل الرصيد والسعر", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
-            checkAndSaveQuickAmount(amountStr, priceStr, svcIdx)
             val price = priceStr.toIntOrNull() ?: 0; val amount = amountStr.toIntOrNull() ?: 0; val net = "Direct"
-            if (dbHelper.addPending(selectedName, net, amount, price, getCurrentDateString(), serviceName, amount)) { Toast.makeText(this, "تم الحفظ في المعلقات", Toast.LENGTH_SHORT).show(); inputTransferCustomer.setText(""); inputTransferAmount.setText(""); inputTransferPrice.setText(""); loadAllData() }
+            if (dbHelper.addPending(selectedName, net, amount, price, getCurrentDateString(), serviceName, amount)) { rememberQuickCategory(serviceName, amount.toLong(), price.toLong()); Toast.makeText(this, "تم الحفظ في المعلقات", Toast.LENGTH_SHORT).show(); inputTransferCustomer.setText(""); inputTransferAmount.setText(""); inputTransferPrice.setText(""); loadAllData() }
             else { Toast.makeText(this, "تعذر حفظ الطلب؛ تحقق من الرصيد والسعر", Toast.LENGTH_LONG).show() }
         }
 
@@ -423,9 +419,27 @@ class MainActivity : AppCompatActivity() {
             val name = inputTransCustomer.text.toString().trim(); val amountStr = inputTransAmount.text.toString().trim(); val svcName = transServicesArray[spinnerTransService.selectedItemPosition]
             if (name.isNotEmpty() && amountStr.isNotEmpty()) { if (dbHelper.addTransaction(name, amountStr.toIntOrNull() ?: 0, 2, inputTransNote.text.toString().trim(), getCurrentDateString(), svcName)) { inputTransCustomer.text.clear(); inputTransAmount.text.clear(); inputTransNote.text.clear(); loadAllData(); Toast.makeText(this, "تم تسجيل الدفعة بنجاح", Toast.LENGTH_SHORT).show() } } else { Toast.makeText(this, "أدخل الاسم والمبلغ", Toast.LENGTH_SHORT).show() }
         }
-        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE); val inputSyrPin = findViewById(R.id.input_settings_syr_pin) as EditText; val inputSyrCode = findViewById(R.id.input_settings_syr_code) as EditText; val inputSyrAmounts = findViewById(R.id.input_settings_syr_amounts) as EditText; val inputMtnPin = findViewById(R.id.input_settings_mtn_pin) as EditText; val inputMtnCode = findViewById(R.id.input_settings_mtn_code) as EditText; val inputMtnAmounts = findViewById(R.id.input_settings_mtn_amounts) as EditText
-        inputSyrPin.setText(prefs.getString("syr_pin", "")); inputSyrCode.setText(prefs.getString("syr_code", "*150*رقم*مبلغ*رمز#")); inputSyrAmounts.setText(prefs.getString("syr_amounts", "1000:1300, 2000:2600")); inputMtnPin.setText(prefs.getString("mtn_pin", "")); inputMtnCode.setText(prefs.getString("mtn_code", "*150*رقم*مبلغ*رمز#")); inputMtnAmounts.setText(prefs.getString("mtn_amounts", "1000:1250, 1500:1900"))
-        findViewById<Button>(R.id.btn_save_settings).setOnClickListener { prefs.edit().putString("syr_pin", inputSyrPin.text.toString().trim()).putString("syr_code", inputSyrCode.text.toString().trim()).putString("syr_amounts", inputSyrAmounts.text.toString().trim()).putString("mtn_pin", inputMtnPin.text.toString().trim()).putString("mtn_code", inputMtnCode.text.toString().trim()).putString("mtn_amounts", inputMtnAmounts.text.toString().trim()).apply(); Toast.makeText(this, "تم الحفظ", Toast.LENGTH_SHORT).show(); updateSpinner(spinnerServiceType.selectedItemPosition) }
+        val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+        val inputSyrPin = findViewById<EditText>(R.id.input_settings_syr_pin)
+        val inputSyrCode = findViewById<EditText>(R.id.input_settings_syr_code)
+        val inputMtnPin = findViewById<EditText>(R.id.input_settings_mtn_pin)
+        val inputMtnCode = findViewById<EditText>(R.id.input_settings_mtn_code)
+        inputSyrPin.setText(prefs.getString("syr_pin", ""))
+        inputSyrCode.setText(prefs.getString("syr_code", "*150*رقم*مبلغ*رمز#"))
+        inputMtnPin.setText(prefs.getString("mtn_pin", ""))
+        inputMtnCode.setText(prefs.getString("mtn_code", "*150*رقم*مبلغ*رمز#"))
+        findViewById<Button>(R.id.btn_save_settings).setOnClickListener {
+            prefs.edit()
+                .putString("syr_pin", inputSyrPin.text.toString().trim())
+                .putString("syr_code", inputSyrCode.text.toString().trim())
+                .putString("mtn_pin", inputMtnPin.text.toString().trim())
+                .putString("mtn_code", inputMtnCode.text.toString().trim())
+                .apply()
+            Toast.makeText(this, "تم الحفظ", Toast.LENGTH_SHORT).show()
+        }
+        findViewById<Button>(R.id.btn_manage_categories).setOnClickListener {
+            showManageCategoriesDialog { updateSpinner(spinnerServiceType.selectedItemPosition) }
+        }
         findViewById<Button>(R.id.btn_share_backup).setOnClickListener { shareBackup() }
         val switchDarkModeId = resources.getIdentifier("switch_dark_mode", "id", packageName)
         if (switchDarkModeId != 0) {
@@ -433,6 +447,166 @@ class MainActivity : AppCompatActivity() {
             switchDarkMode.setOnCheckedChangeListener { _, isChecked -> prefs.edit().putBoolean("dark_mode", isChecked).apply(); if (isChecked) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES) else AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO) }
         }
         loadAllData(); updateSpinner(0); navTransfer.performClick()
+    }
+
+    private fun migrateLegacyCategories(prefs: android.content.SharedPreferences) {
+        if (prefs.getBoolean("service_categories_migrated", false)) return
+        val defaultValues = arrayOf(
+            "1000:1300, 2000:2600",
+            "1000:1250, 1500:1900",
+            "",
+            "",
+            ""
+        )
+        servicesArray.forEachIndexed { index, serviceName ->
+            if (dbHelper.getCategoriesByService(serviceName).isEmpty()) {
+                val legacy = prefs.getString(amountKeys[index], defaultValues[index]).orEmpty()
+                legacy.split(",").forEach { entry ->
+                    val parts = entry.trim().split(":")
+                    val amount = parts.getOrNull(0)?.trim()?.toLongOrNull()
+                    val price = parts.getOrNull(1)?.trim()?.toLongOrNull()
+                    if (amount != null && price != null && amount > 0L && price > 0L) {
+                        dbHelper.addCategory(serviceName, amount, price)
+                    }
+                }
+            }
+        }
+        prefs.edit().putBoolean("service_categories_migrated", true).apply()
+    }
+
+    private fun updateQuickCategorySpinner(serviceIndex: Int) {
+        if (serviceIndex !in servicesArray.indices) return
+        currentQuickAmounts = ArrayList(dbHelper.getCategoriesByService(servicesArray[serviceIndex]))
+        val displayList = ArrayList<String>().apply { add("اختر الفئة...") }
+        currentQuickAmounts.forEach { category ->
+            displayList.add(
+                "الرصيد: ${NumberFormat.getNumberInstance(Locale.US).format(category.amount)} | السعر: ${NumberFormat.getNumberInstance(Locale.US).format(category.price)} ل.س"
+            )
+        }
+        findViewById<Spinner>(R.id.spinner_quick_amounts).adapter =
+            ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, displayList)
+    }
+
+    private fun rememberQuickCategory(serviceName: String, amount: Long, price: Long) {
+        if (amount <= 0L || price <= 0L) return
+        if (dbHelper.getCategoriesByService(serviceName).any { it.amount == amount }) return
+        if (!dbHelper.addCategory(serviceName, amount, price)) return
+
+        val serviceSpinner = findViewById<Spinner>(R.id.spinner_service_type)
+        if (serviceSpinner.selectedItem?.toString() == serviceName) {
+            updateQuickCategorySpinner(serviceSpinner.selectedItemPosition)
+        }
+    }
+
+    private fun showManageCategoriesDialog(onCategoriesChanged: () -> Unit) {
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_manage_categories, null)
+        val dialog = AlertDialog.Builder(this).setView(view).create()
+        val serviceSpinner = view.findViewById<Spinner>(R.id.spinner_category_service)
+        val inputAmount = view.findViewById<EditText>(R.id.input_category_amount)
+        val inputPrice = view.findViewById<EditText>(R.id.input_category_price)
+        val recycler = view.findViewById<RecyclerView>(R.id.recycler_categories)
+        val serviceAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, servicesArray)
+        serviceSpinner.adapter = serviceAdapter
+        recycler.layoutManager = LinearLayoutManager(this)
+        var refreshCategories: () -> Unit = {}
+        val categoryAdapter = CategoryAdapter(
+            emptyList(),
+            onEdit = { category ->
+                val editLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    layoutDirection = View.LAYOUT_DIRECTION_RTL
+                    setPadding(24, 8, 24, 0)
+                }
+                val editAmount = EditText(this).apply {
+                    hint = "الرصيد / الكمية"
+                    inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                    setText(category.amount.toString())
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.colorTextPrimary))
+                }
+                val editPrice = EditText(this).apply {
+                    hint = "السعر"
+                    inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                    setText(category.price.toString())
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.colorTextPrimary))
+                }
+                editLayout.addView(editAmount)
+                editLayout.addView(editPrice)
+                val editDialog = AlertDialog.Builder(this)
+                    .setTitle("تعديل الفئة")
+                    .setView(editLayout)
+                    .setPositiveButton("حفظ", null)
+                    .setNegativeButton("إلغاء", null)
+                    .create()
+                editDialog.setOnShowListener {
+                    editDialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        val amount = editAmount.text.toString().trim().toLongOrNull()
+                        val price = editPrice.text.toString().trim().toLongOrNull()
+                        if (amount == null || price == null || amount <= 0L || price <= 0L) {
+                            Toast.makeText(this, "أدخل رصيداً وسعراً صحيحين", Toast.LENGTH_SHORT).show()
+                            return@setOnClickListener
+                        }
+                        if (!dbHelper.updateCategory(category.id, category.serviceName, amount, price)) {
+                            Toast.makeText(this, "تعذر تعديل الفئة", Toast.LENGTH_LONG).show()
+                            return@setOnClickListener
+                        }
+                        refreshCategories()
+                        onCategoriesChanged()
+                        editDialog.dismiss()
+                    }
+                }
+                editDialog.show()
+            },
+            onDelete = { category ->
+                AlertDialog.Builder(this)
+                    .setTitle("حذف الفئة")
+                    .setMessage("هل تريد حذف هذه الفئة؟")
+                    .setPositiveButton("حذف") { _, _ ->
+                        if (dbHelper.deleteCategory(category.id)) {
+                            refreshCategories()
+                            onCategoriesChanged()
+                        } else {
+                            Toast.makeText(this, "تعذر حذف الفئة", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    .setNegativeButton("إلغاء", null)
+                    .show()
+            }
+        )
+        recycler.adapter = categoryAdapter
+
+        refreshCategories = {
+            val serviceName = serviceSpinner.selectedItem as? String
+            if (serviceName != null) {
+                categoryAdapter.categories = dbHelper.getCategoriesByService(serviceName)
+                categoryAdapter.notifyDataSetChanged()
+            }
+        }
+
+        serviceSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, selectedView: View?, position: Int, id: Long) {
+                refreshCategories()
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+        view.findViewById<Button>(R.id.btn_category_add).setOnClickListener {
+            val serviceName = serviceSpinner.selectedItem as? String ?: return@setOnClickListener
+            val amount = inputAmount.text.toString().trim().toLongOrNull()
+            val price = inputPrice.text.toString().trim().toLongOrNull()
+            if (amount == null || price == null || amount <= 0L || price <= 0L) {
+                Toast.makeText(this, "أدخل رصيداً وسعراً صحيحين", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (!dbHelper.addCategory(serviceName, amount, price)) {
+                Toast.makeText(this, "تعذر إضافة الفئة", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            inputAmount.text.clear()
+            inputPrice.text.clear()
+            refreshCategories()
+            onCategoriesChanged()
+        }
+        dialog.show()
     }
     fun showCompanyChargeDialog(compName: String, onComplete: () -> Unit) {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_company_charge, null)
@@ -524,8 +698,9 @@ class MainActivity : AppCompatActivity() {
             val pageHeight = 842
             val margin = 45f
             val right = pageWidth - margin
-            val regularPaint = Paint().apply {
-                textSize = 11f
+            val numberFormat = NumberFormat.getNumberInstance(Locale.US)
+            val regularPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                textSize = 10f
                 color = Color.BLACK
                 textAlign = Paint.Align.RIGHT
             }
@@ -534,13 +709,49 @@ class MainActivity : AppCompatActivity() {
                 textSize = 20f
                 color = Color.rgb(15, 76, 92)
             }
+            val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.LTGRAY
+                strokeWidth = 0.7f
+            }
             var pageNumber = 1
             var page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
             var canvas = page.canvas
             var y = 0f
 
+            fun wrapText(text: String, paint: Paint, maxWidth: Float): List<String> {
+                if (text.isEmpty()) return listOf("")
+                val lines = ArrayList<String>()
+                var line = StringBuilder()
+                for (word in text.split(Regex("\\s+"))) {
+                    val candidate = if (line.isEmpty()) word else "${line} $word"
+                    if (paint.measureText(candidate) <= maxWidth) {
+                        line = StringBuilder(candidate)
+                    } else {
+                        if (line.isNotEmpty()) {
+                            lines.add(line.toString())
+                            line = StringBuilder()
+                        }
+                        if (paint.measureText(word) <= maxWidth) {
+                            line.append(word)
+                        } else {
+                            var fragment = StringBuilder()
+                            for (character in word) {
+                                if (paint.measureText("$fragment$character") > maxWidth && fragment.isNotEmpty()) {
+                                    lines.add(fragment.toString())
+                                    fragment = StringBuilder()
+                                }
+                                fragment.append(character)
+                            }
+                            line = fragment
+                        }
+                    }
+                }
+                if (line.isNotEmpty()) lines.add(line.toString())
+                return lines.ifEmpty { listOf("") }
+            }
+
             fun drawPageHeader() {
-                y = 48f
+                y = 44f
                 canvas.drawText("السجل التفصيلي للشركة", right, y, titlePaint)
                 y += 26f
                 canvas.drawText("الشركة: $companyName", right, y, boldPaint)
@@ -551,15 +762,16 @@ class MainActivity : AppCompatActivity() {
                     "${fromDate.ifEmpty { "البداية" }} - ${toDate.ifEmpty { "النهاية" }}"
                 }
                 canvas.drawText("الفترة: $period", right, y, regularPaint)
-                y += 30f
+                y += 28f
+                canvas.drawRect(margin, y - 16f, right, y + 8f, Paint().apply { color = Color.rgb(235, 238, 240) })
                 boldPaint.color = Color.rgb(15, 76, 92)
-                canvas.drawText("التاريخ", right, y, boldPaint)
-                canvas.drawText("نوع العملية", 450f, y, boldPaint)
-                canvas.drawText("المبلغ / الكمية", 320f, y, boldPaint)
-                canvas.drawText("الملاحظة", 165f, y, boldPaint)
-                y += 9f
-                canvas.drawLine(margin, y, right, y, boldPaint)
-                y += 23f
+                canvas.drawText("التاريخ", 550f, y, boldPaint)
+                canvas.drawText("العملية", 450f, y, boldPaint)
+                canvas.drawText("المبلغ / الكمية", 318f, y, boldPaint)
+                canvas.drawText("التفاصيل والملاحظة", 185f, y, boldPaint)
+                y += 14f
+                canvas.drawLine(margin, y, right, y, gridPaint)
+                y += 18f
                 boldPaint.color = Color.BLACK
             }
 
@@ -578,51 +790,75 @@ class MainActivity : AppCompatActivity() {
             var salesValue = 0L
             var salesQuantity = 0L
             for (entry in entries) {
-                if (y > 770f) startNextPage()
-                val amountAndQuantity = when (entry.type) {
+                val amountLines = when (entry.type) {
                     "شحن رصيد" -> {
                         purchaseCost += entry.amount
                         purchaseQuantity += entry.quantity
-                        "تكلفة ${NumberFormat.getNumberInstance(Locale.US).format(entry.amount)} | كمية ${NumberFormat.getNumberInstance(Locale.US).format(entry.quantity)}"
+                        listOf(
+                            "التكلفة: ${numberFormat.format(entry.amount)} ل.س",
+                            "الكمية: ${numberFormat.format(entry.quantity)}"
+                        )
                     }
                     "دفعة للشركة" -> {
                         payments += entry.amount
-                        "مدفوع ${NumberFormat.getNumberInstance(Locale.US).format(entry.amount)} ل.س"
+                        listOf("المدفوع: ${numberFormat.format(entry.amount)} ل.س")
                     }
                     else -> {
                         salesValue += entry.amount
                         salesQuantity += entry.quantity
-                        "قيمة ${NumberFormat.getNumberInstance(Locale.US).format(entry.amount)} | كمية ${NumberFormat.getNumberInstance(Locale.US).format(entry.quantity)}"
+                        listOf(
+                            "القيمة: ${numberFormat.format(entry.amount)} ل.س",
+                            "الكمية: ${numberFormat.format(entry.quantity)}"
+                        )
                     }
                 }
-                canvas.drawText(entry.date.take(16), right, y, regularPaint)
-                canvas.drawText(entry.type, 450f, y, regularPaint)
-                canvas.drawText(amountAndQuantity, 320f, y, regularPaint)
-                val note = entry.note.replace('\n', ' ').let { if (it.length > 32) it.take(29) + "..." else it }
-                canvas.drawText(note, 165f, y, regularPaint)
-                y += 24f
+                val noteLines = wrapText(entry.note.trim(), regularPaint, 132f)
+                val rowHeight = maxOf(amountLines.size, noteLines.size, 1) * 14f + 12f
+                if (y + rowHeight > 770f) startNextPage()
+                val firstBaseline = y + 10f
+                canvas.drawText(entry.date.take(10), 550f, firstBaseline, regularPaint)
+                canvas.drawText(entry.type, 450f, firstBaseline, regularPaint)
+                amountLines.forEachIndexed { index, line ->
+                    canvas.drawText(line, 318f, firstBaseline + index * 14f, regularPaint)
+                }
+                noteLines.forEachIndexed { index, line ->
+                    canvas.drawText(line, 185f, firstBaseline + index * 14f, regularPaint)
+                }
+                y += rowHeight
+                canvas.drawLine(margin, y - 3f, right, y - 3f, gridPaint)
+            }
+            if (entries.isEmpty()) {
+                regularPaint.color = Color.GRAY
+                canvas.drawText("لا توجد حركات ضمن الفترة المحددة", right, y + 12f, regularPaint)
+                regularPaint.color = Color.BLACK
+                y += 26f
             }
 
-            if (y > 700f) startNextPage()
-            y += 8f
-            canvas.drawLine(margin, y, right, y, boldPaint)
-            y += 24f
-            boldPaint.textSize = 12f
-            canvas.drawText(
-                "مشتريات: ${NumberFormat.getNumberInstance(Locale.US).format(purchaseQuantity)} رصيد / ${NumberFormat.getNumberInstance(Locale.US).format(purchaseCost)} ل.س",
-                right,
-                y,
-                boldPaint
+            if (y > 680f) startNextPage()
+            val summaryRows = listOf(
+                "إجمالي مشتريات الرصيد: ${numberFormat.format(purchaseQuantity)} كمية | ${numberFormat.format(purchaseCost)} ل.س تكلفة",
+                "إجمالي دفعات الشركة: ${numberFormat.format(payments)} ل.س",
+                "إجمالي مبيعات الزبائن: ${numberFormat.format(salesQuantity)} كمية | ${numberFormat.format(salesValue)} ل.س",
+                "الدين المتبقي للشركة: ${numberFormat.format(purchaseCost - payments)} ل.س"
             )
-            y += 22f
-            canvas.drawText("دفعات للشركة: ${NumberFormat.getNumberInstance(Locale.US).format(payments)} ل.س", right, y, boldPaint)
-            y += 22f
-            canvas.drawText(
-                "مبيعات الزبائن: ${NumberFormat.getNumberInstance(Locale.US).format(salesQuantity)} رصيد / ${NumberFormat.getNumberInstance(Locale.US).format(salesValue)} ل.س",
-                right,
-                y,
-                boldPaint
-            )
+            val summaryTop = y + 12f
+            val summaryBottom = summaryTop + summaryRows.size * 23f + 16f
+            canvas.drawRect(margin, summaryTop, right, summaryBottom, Paint().apply {
+                color = Color.rgb(247, 248, 249)
+                style = Paint.Style.FILL
+            })
+            canvas.drawRect(margin, summaryTop, right, summaryBottom, Paint().apply {
+                color = Color.rgb(15, 76, 92)
+                style = Paint.Style.STROKE
+                strokeWidth = 1f
+            })
+            boldPaint.textSize = 11f
+            boldPaint.color = Color.BLACK
+            summaryRows.forEachIndexed { index, summary ->
+                val baseline = summaryTop + 21f + index * 23f
+                if (index == summaryRows.lastIndex) boldPaint.color = Color.rgb(15, 76, 92)
+                canvas.drawText(summary, right - 10f, baseline, boldPaint)
+            }
             pdfDocument.finishPage(page)
 
             val outputDirectory = getExternalFilesDir(null)
@@ -666,94 +902,161 @@ class MainActivity : AppCompatActivity() {
     private fun generateAndSharePDF(customer: Customer, fromDate: String, toDate: String) {
         val pdfDocument = PdfDocument()
         try {
+            val pageWidth = 595
+            val pageHeight = 842
+            val margin = 45f
+            val right = pageWidth - margin
+            val numberFormat = NumberFormat.getNumberInstance(Locale.US)
+            val regularPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                textSize = 10f
+                color = Color.BLACK
+                textAlign = Paint.Align.RIGHT
+            }
+            val boldPaint = Paint(regularPaint).apply { isFakeBoldText = true }
+            val titlePaint = Paint(boldPaint).apply {
+                textSize = 20f
+                color = Color.rgb(15, 76, 92)
+            }
+            val gridPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.LTGRAY
+                strokeWidth = 0.7f
+            }
             var pageNumber = 1
-            var page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, pageNumber).create())
+            var page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
             var canvas = page.canvas
-            val paint = Paint().apply { textSize = 14f; color = Color.BLACK; textAlign = Paint.Align.RIGHT }
-            val boldPaint = Paint().apply { textSize = 14f; color = Color.BLACK; isFakeBoldText = true; textAlign = Paint.Align.RIGHT }
-            val titlePaint = Paint().apply { textSize = 22f; color = Color.parseColor("#FF6B00"); isFakeBoldText = true; textAlign = Paint.Align.RIGHT }
-            val startX = 550f
-            var y = 60f
+            var y = 0f
+
+            fun wrapText(text: String, paint: Paint, maxWidth: Float): List<String> {
+                if (text.isEmpty()) return listOf("")
+                val lines = ArrayList<String>()
+                var line = StringBuilder()
+                for (word in text.split(Regex("\\s+"))) {
+                    val candidate = if (line.isEmpty()) word else "${line} $word"
+                    if (paint.measureText(candidate) <= maxWidth) {
+                        line = StringBuilder(candidate)
+                    } else {
+                        if (line.isNotEmpty()) {
+                            lines.add(line.toString())
+                            line = StringBuilder()
+                        }
+                        if (paint.measureText(word) <= maxWidth) {
+                            line.append(word)
+                        } else {
+                            var fragment = StringBuilder()
+                            for (character in word) {
+                                if (paint.measureText("$fragment$character") > maxWidth && fragment.isNotEmpty()) {
+                                    lines.add(fragment.toString())
+                                    fragment = StringBuilder()
+                                }
+                                fragment.append(character)
+                            }
+                            line = fragment
+                        }
+                    }
+                }
+                if (line.isNotEmpty()) lines.add(line.toString())
+                return lines.ifEmpty { listOf("") }
+            }
 
             fun drawTableHeader() {
-                boldPaint.color = Color.parseColor("#2C3E50")
-                canvas.drawText("التاريخ", 160f, y, boldPaint)
-                canvas.drawText("النوع", 260f, y, boldPaint)
-                canvas.drawText("المبلغ (ل.س)", 380f, y, boldPaint)
-                canvas.drawText("الفئة / التفاصيل", startX, y, boldPaint)
-                y += 15f
-                canvas.drawLine(50f, y, 550f, y, boldPaint)
+                canvas.drawRect(margin, y - 16f, right, y + 8f, Paint().apply { color = Color.rgb(235, 238, 240) })
+                boldPaint.color = Color.rgb(15, 76, 92)
+                canvas.drawText("التاريخ", 550f, y, boldPaint)
+                canvas.drawText("النوع", 450f, y, boldPaint)
+                canvas.drawText("المبلغ (ل.س)", 350f, y, boldPaint)
+                canvas.drawText("الفئة والتفاصيل", 185f, y, boldPaint)
+                y += 14f
+                canvas.drawLine(margin, y, right, y, gridPaint)
+                y += 18f
+                boldPaint.color = Color.BLACK
+            }
+
+            fun drawPageHeader() {
+                y = 42f
+                canvas.drawText("كشف حساب زبون", right, y, titlePaint)
+                y += 26f
+                canvas.drawText("اسم الزبون: ${customer.name}", right, y, boldPaint)
+                y += 20f
+                val dateText = if (fromDate.isNotEmpty() || toDate.isNotEmpty()) {
+                    "الفترة: ${fromDate.ifEmpty { "البداية" }} إلى ${toDate.ifEmpty { "النهاية" }}"
+                } else {
+                    "الفترة: جميع الحركات السابقة"
+                }
+                canvas.drawText(dateText, right, y, regularPaint)
                 y += 30f
+                drawTableHeader()
             }
 
-            canvas.drawText("كشف حساب زبون", startX, y, titlePaint)
-            y += 40f
-            canvas.drawText("اسم الزبون: " + customer.name, startX, y, boldPaint)
-            y += 25f
-            val dateText = if (fromDate.isNotEmpty() || toDate.isNotEmpty()) {
-                "الفترة: " + (if (fromDate.isEmpty()) "البداية" else fromDate) + " إلى " +
-                    (if (toDate.isEmpty()) "النهاية" else toDate)
-            } else {
-                "الفترة: جميع الحركات السابقة"
+            fun startNextPage() {
+                pdfDocument.finishPage(page)
+                pageNumber++
+                page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
+                canvas = page.canvas
+                drawPageHeader()
             }
-            canvas.drawText(dateText, startX, y, paint)
-            y += 50f
-            drawTableHeader()
 
-            var filtered = transactionList.filter { it.customerName == customer.name }.sortedBy { it.id }
+            drawPageHeader()
+            var filtered = dbHelper.getAllTransactions().filter { it.customerName == customer.name }.sortedBy { it.id }
             if (fromDate.isNotEmpty()) filtered = filtered.filter { it.date.take(10) >= fromDate }
             if (toDate.isNotEmpty()) filtered = filtered.filter { it.date.take(10) <= toDate }
 
             var totalDebt = 0L
             var totalPay = 0L
             for (transaction in filtered) {
-                if (y > 780f) {
-                    pdfDocument.finishPage(page)
-                    pageNumber++
-                    page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, pageNumber).create())
-                    canvas = page.canvas
-                    y = 60f
-                    drawTableHeader()
-                }
-
                 if (transaction.type == 1) totalDebt += transaction.amount.toLong() else totalPay += transaction.amount.toLong()
                 val typeLabel = if (transaction.type == 1) "دين" else "دفعة"
                 val serviceLabel = transaction.serviceType.ifBlank { if (transaction.type == 2) "دفعة عامة" else "رصيد" }
-                val details = "[$serviceLabel] ${transaction.note}"
+                val details = "[$serviceLabel]" + transaction.note.trim().takeIf { it.isNotEmpty() }?.let { " - $it" }.orEmpty()
+                val detailLines = wrapText(details, regularPaint, 130f)
+                val rowHeight = detailLines.size * 14f + 12f
+                if (y + rowHeight > 755f) startNextPage()
 
-                paint.color = Color.GRAY
-                canvas.drawText(transaction.date.take(10), 160f, y, paint)
-                boldPaint.color = if (transaction.type == 1) Color.RED else Color.parseColor("#388E3C")
-                canvas.drawText(typeLabel, 260f, y, boldPaint)
-                paint.color = Color.BLACK
-                canvas.drawText(NumberFormat.getNumberInstance(Locale.US).format(transaction.amount), 380f, y, paint)
-                canvas.drawText(if (details.length > 25) details.take(25) + "..!" else details, startX, y, paint)
-                y += 30f
+                val firstBaseline = y + 10f
+                regularPaint.color = Color.DKGRAY
+                canvas.drawText(transaction.date.take(10), 550f, firstBaseline, regularPaint)
+                boldPaint.color = if (transaction.type == 1) Color.RED else Color.rgb(56, 142, 60)
+                canvas.drawText(typeLabel, 450f, firstBaseline, boldPaint)
+                regularPaint.color = Color.BLACK
+                canvas.drawText(numberFormat.format(transaction.amount.toLong()), 350f, firstBaseline, regularPaint)
+                detailLines.forEachIndexed { index, line ->
+                    canvas.drawText(line, 185f, firstBaseline + index * 14f, regularPaint)
+                }
+                y += rowHeight
+                canvas.drawLine(margin, y - 3f, right, y - 3f, gridPaint)
+            }
+            if (filtered.isEmpty()) {
+                regularPaint.color = Color.GRAY
+                canvas.drawText("لا توجد حركات ضمن الفترة المحددة", right, y + 12f, regularPaint)
+                regularPaint.color = Color.BLACK
+                y += 26f
             }
 
-            if (y > 700f) {
-                pdfDocument.finishPage(page)
-                pageNumber++
-                page = pdfDocument.startPage(PdfDocument.PageInfo.Builder(595, 842, pageNumber).create())
-                canvas = page.canvas
-                y = 60f
-            }
-            y += 10f
-            boldPaint.color = Color.BLACK
-            canvas.drawLine(50f, y, 550f, y, boldPaint)
-            y += 40f
-            boldPaint.textSize = 16f
-            boldPaint.color = Color.RED
-            canvas.drawText("مجموع ديون الفترة: " + NumberFormat.getNumberInstance(Locale.US).format(totalDebt), startX, y, boldPaint)
-            y += 30f
-            boldPaint.color = Color.parseColor("#388E3C")
-            canvas.drawText("مجموع دفعات الفترة: " + NumberFormat.getNumberInstance(Locale.US).format(totalPay), startX, y, boldPaint)
-            y += 30f
+            if (y > 660f) startNextPage()
             val net = totalDebt - totalPay
-            boldPaint.textSize = 18f
-            boldPaint.color = if (net > 0) Color.RED else Color.parseColor("#388E3C")
-            val netLabel = if (net > 0) "الرصيد المتبقي لنا: " else "الرصيد المتبقي للزبون: "
-            canvas.drawText(netLabel + NumberFormat.getNumberInstance(Locale.US).format(kotlin.math.abs(net)) + " ل.س", startX, y, boldPaint)
+            val summaryTop = y + 12f
+            val summaryHeight = 3 * 27f + 18f
+            canvas.drawRect(margin, summaryTop, right, summaryTop + summaryHeight, Paint().apply {
+                color = Color.rgb(247, 248, 249)
+                style = Paint.Style.FILL
+            })
+            canvas.drawRect(margin, summaryTop, right, summaryTop + summaryHeight, Paint().apply {
+                color = Color.rgb(15, 76, 92)
+                style = Paint.Style.STROKE
+                strokeWidth = 1f
+            })
+            boldPaint.textSize = 12f
+            boldPaint.color = Color.RED
+            canvas.drawText("إجمالي الديون: ${numberFormat.format(totalDebt)} ل.س", right - 12f, summaryTop + 23f, boldPaint)
+            boldPaint.color = Color.rgb(56, 142, 60)
+            canvas.drawText("إجمالي الدفعات: ${numberFormat.format(totalPay)} ل.س", right - 12f, summaryTop + 50f, boldPaint)
+            boldPaint.textSize = 14f
+            boldPaint.color = if (net > 0) Color.RED else Color.rgb(0, 121, 107)
+            val netLabel = when {
+                net > 0 -> "الرصيد المتبقي لنا"
+                net < 0 -> "الرصيد المتبقي للزبون"
+                else -> "الحساب متوازن"
+            }
+            canvas.drawText("$netLabel: ${numberFormat.format(kotlin.math.abs(net))} ل.س", right - 12f, summaryTop + 77f, boldPaint)
             pdfDocument.finishPage(page)
 
             val backupDir = getExternalFilesDir(null)
@@ -828,6 +1131,7 @@ class MainActivity : AppCompatActivity() {
                 return false
             }
 
+            rememberQuickCategory(lastServiceType, lastTransAmount.toLong(), lastTransPrice.toLong())
             operationResolved = true
             executingPendingId = -1
             transferConfirmationDialogVisible = false
@@ -864,6 +1168,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "تعذر حفظ الحركة؛ لم يتم حذف الطلب المعلق", Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
+            rememberQuickCategory(lastServiceType, lastTransAmount.toLong(), lastTransPrice.toLong())
             operationResolved = true
             Toast.makeText(this, "تم قيد " + lastTransPrice + " ل.س كدين", Toast.LENGTH_SHORT).show()
             findViewById<EditText>(R.id.input_transfer_amount).setText("")
@@ -1071,6 +1376,33 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "تم رفض إذن الاتصال؛ لم يتم تنفيذ التحويل", Toast.LENGTH_LONG).show()
         }
     }
+}
+
+class CategoryAdapter(
+    var categories: List<ServiceCategory>,
+    private val onEdit: (ServiceCategory) -> Unit,
+    private val onDelete: (ServiceCategory) -> Unit
+) : RecyclerView.Adapter<CategoryAdapter.ViewHolder>() {
+    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val amount = view.findViewById<TextView>(R.id.tv_category_amount)
+        val price = view.findViewById<TextView>(R.id.tv_category_price)
+        val edit = view.findViewById<ImageView>(R.id.btn_category_edit)
+        val delete = view.findViewById<ImageView>(R.id.btn_category_delete)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder =
+        ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.layout_category_item, parent, false))
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val category = categories[position]
+        val numberFormat = NumberFormat.getNumberInstance(Locale.US)
+        holder.amount.text = "الرصيد: ${numberFormat.format(category.amount)}"
+        holder.price.text = "السعر: ${numberFormat.format(category.price)} ل.س"
+        holder.edit.setOnClickListener { onEdit(category) }
+        holder.delete.setOnClickListener { onDelete(category) }
+    }
+
+    override fun getItemCount(): Int = categories.size
 }
 
 class PendingAdapter(var items: List<PendingRequest>, private val onExecute: (PendingRequest) -> Unit, private val onDelete: (PendingRequest) -> Unit) : RecyclerView.Adapter<PendingAdapter.ViewHolder>() {

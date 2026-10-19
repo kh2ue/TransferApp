@@ -5,7 +5,7 @@
     android:orientation="vertical"
     android:layoutDirection="rtl"
     android:padding="24dp"
-    android:background="#FFFFFF">
+    android:background="@color/colorBackground">
 
     <TextView
         android:id="@+id/tv_dialog_title"
@@ -14,7 +14,7 @@
         android:text="تحويل رصيد"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="#2C3E50"
+        android:textColor="@color/colorTextPrimary"
         android:layout_marginBottom="20dp"/>
 
     <EditText
@@ -26,7 +26,8 @@
         android:hint="المبلغ (مثال: 5000)"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
-        android:textColor="#333333"
+        android:textColor="@color/colorTextPrimary"
+        android:textColorHint="@color/colorHint"
         android:layout_marginBottom="16dp"/>
 
     <EditText
@@ -38,7 +39,8 @@
         android:hint="الرمز السري للخط (PIN)"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
-        android:textColor="#333333"
+        android:textColor="@color/colorTextPrimary"
+        android:textColorHint="@color/colorHint"
         android:layout_marginBottom="24dp"/>
 
     <androidx.appcompat.widget.AppCompatButton
@@ -49,5 +51,5 @@
         android:textSize="18sp"
         android:textStyle="bold"
         android:background="@drawable/bg_rounded_orange"
-        android:textColor="#FFFFFF" />
+        android:textColor="@color/colorTextOnPrimary" />
 </LinearLayout>

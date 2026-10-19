@@ -12,14 +12,16 @@ data class CompanyPayment(val id: Int, val companyName: String, val paidAmount: 
 data class CompanyLogEntry(val id: Int, val companyName: String, val type: String, val amount: Long, val quantity: Long, val date: String, val note: String)
 data class CompanyReportEntry(val id: Int, val type: String, val amount: Long, val quantity: Long, val date: String, val note: String)
 data class SalesReport(val totalCredit: Long, val totalFinancial: Long, val count: Int)
+data class ServiceCategory(val id: Int, val serviceName: String, val amount: Long, val price: Long)
 
-class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.db", null, 11) {
+class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.db", null, 12) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE Customers (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, PhoneSyriatel TEXT, PhoneMtn TEXT)")
         db.execSQL("CREATE TABLE Transactions (ID INTEGER PRIMARY KEY AUTOINCREMENT, CustomerName TEXT, Amount INTEGER, Type INTEGER, Note TEXT, Date TEXT, ServiceType TEXT, ServiceAmount INTEGER DEFAULT 0)")
         db.execSQL("CREATE TABLE PendingRequests (ID INTEGER PRIMARY KEY AUTOINCREMENT, CustomerName TEXT, Network TEXT, Amount INTEGER, Price INTEGER, Date TEXT, ServiceType TEXT, ServiceAmount INTEGER DEFAULT 0)")
         db.execSQL("CREATE TABLE CompanyPurchases (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, Amount INTEGER, Cost INTEGER, Date TEXT, Note TEXT)")
         db.execSQL("CREATE TABLE CompanyPayments (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, PaidAmount INTEGER, Date TEXT, Note TEXT)")
+        db.execSQL("CREATE TABLE ServiceCategories (id INTEGER PRIMARY KEY AUTOINCREMENT, service_name TEXT NOT NULL, amount INTEGER NOT NULL, price INTEGER NOT NULL)")
     }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 8) {
@@ -39,6 +41,76 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
             )
             db.execSQL("UPDATE PendingRequests SET ServiceAmount = Amount WHERE ServiceAmount=0")
         }
+        if (oldVersion < 12) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS ServiceCategories (id INTEGER PRIMARY KEY AUTOINCREMENT, service_name TEXT NOT NULL, amount INTEGER NOT NULL, price INTEGER NOT NULL)")
+        }
+    }
+
+    fun addCategory(serviceName: String, amount: Long, price: Long): Boolean {
+        if (serviceName.isBlank() || amount <= 0L || price <= 0L) return false
+        val db = writableDatabase
+        return try {
+            val values = ContentValues().apply {
+                put("service_name", serviceName)
+                put("amount", amount)
+                put("price", price)
+            }
+            db.insert("ServiceCategories", null, values) != -1L
+        } finally {
+            db.close()
+        }
+    }
+
+    fun updateCategory(id: Int, serviceName: String, amount: Long, price: Long): Boolean {
+        if (id <= 0 || serviceName.isBlank() || amount <= 0L || price <= 0L) return false
+        val db = writableDatabase
+        return try {
+            val values = ContentValues().apply {
+                put("service_name", serviceName)
+                put("amount", amount)
+                put("price", price)
+            }
+            db.update("ServiceCategories", values, "id=?", arrayOf(id.toString())) > 0
+        } finally {
+            db.close()
+        }
+    }
+
+    fun deleteCategory(id: Int): Boolean {
+        if (id <= 0) return false
+        val db = writableDatabase
+        return try {
+            db.delete("ServiceCategories", "id=?", arrayOf(id.toString())) > 0
+        } finally {
+            db.close()
+        }
+    }
+
+    fun getCategoriesByService(serviceName: String): List<ServiceCategory> {
+        val categories = ArrayList<ServiceCategory>()
+        val db = readableDatabase
+        try {
+            db.rawQuery(
+                "SELECT id, service_name, amount, price FROM ServiceCategories WHERE service_name=? ORDER BY amount ASC",
+                arrayOf(serviceName)
+            ).use { cursor ->
+                if (cursor.moveToFirst()) {
+                    do {
+                        categories.add(
+                            ServiceCategory(
+                                cursor.getInt(0),
+                                cursor.getString(1),
+                                cursor.getLong(2),
+                                cursor.getLong(3)
+                            )
+                        )
+                    } while (cursor.moveToNext())
+                }
+            }
+        } finally {
+            db.close()
+        }
+        return categories
     }
 
     // --- Customers ---
