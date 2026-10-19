@@ -55,6 +55,9 @@ class MainActivity : AppCompatActivity() {
     var lastTransPrice = 0
     var lastTransNet = ""
     var executingPendingId = -1
+    var lastServiceType = ""
+    val amountKeys = arrayOf("syr_amounts", "mtn_amounts", "cham_amounts", "syr_bill_amounts", "mtn_bill_amounts")
+    val servicesArray = arrayOf("رصيد Syriatel", "رصيد MTN", "شام كاش", "فاتورة Syriatel", "فاتورة MTN")
 
     private fun getCurrentDateString(): String { return SimpleDateFormat("yyyy/MM/dd hh:mm a", Locale.US).format(Date()) }
     override fun onStop() { super.onStop(); autoBackupDatabase() }
@@ -62,9 +65,7 @@ class MainActivity : AppCompatActivity() {
         try {
             val currentDB = getDatabasePath("TransferApp.db")
             val backupDir = getExternalFilesDir(null)
-            if (backupDir != null && currentDB.exists()) {
-                FileInputStream(currentDB).use { src -> FileOutputStream(File(backupDir, "TransferApp_Backup.db")).use { dst -> src.copyTo(dst) } }
-            }
+            if (backupDir != null && currentDB.exists()) { FileInputStream(currentDB).use { src -> FileOutputStream(File(backupDir, "TransferApp_Backup.db")).use { dst -> src.copyTo(dst) } } }
         } catch (e: Exception) {}
     }
     private fun shareBackup() {
@@ -114,18 +115,24 @@ class MainActivity : AppCompatActivity() {
         navSettings.setOnClickListener { layoutTransfer.visibility = View.GONE; layoutCustomers.visibility = View.GONE; layoutDebt.visibility = View.GONE; layoutSettings.visibility = View.VISIBLE; tvMainTitle.text = "الإعدادات"; updateNavUI("settings") }
 
         val inputTransferCustomer = findViewById(R.id.input_transfer_customer) as AutoCompleteTextView
-        val rbSyr = findViewById(R.id.rb_syr) as RadioButton
-        val rbMtn = findViewById(R.id.rb_mtn) as RadioButton
+        val spinnerServiceType = findViewById<Spinner>(R.id.spinner_service_type)
         val spinnerQuickAmounts = findViewById(R.id.spinner_quick_amounts) as Spinner
         val inputTransferAmount = findViewById(R.id.input_transfer_amount) as EditText
         val inputTransferPrice = findViewById(R.id.input_transfer_price) as EditText
         val btnExecuteTransfer = findViewById(R.id.btn_execute_transfer) as Button
         val btnShowPending = findViewById(R.id.btn_show_pending) as Button
+        val btnDoneDebt = findViewById<Button>(R.id.btn_done_debt)
+        val btnAddPending = findViewById<Button>(R.id.btn_add_pending)
+        val layoutDirectActions = findViewById<View>(R.id.layout_direct_actions)
+
+        spinnerServiceType.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, servicesArray)
         inputTransferCustomer.setOnTouchListener { _, _ -> inputTransferCustomer.showDropDown(); false }
         
-        fun updateSpinner(isSyr: Boolean) {
+        fun updateSpinner(serviceIdx: Int) {
             val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
-            val raw = if (isSyr) prefs.getString("syr_amounts", "1000:1300, 2000:2600") else prefs.getString("mtn_amounts", "1000:1300, 2000:2600")
+            val key = amountKeys[serviceIdx]
+            val defaultVal = if (serviceIdx == 0) "1000:1300, 2000:2600" else if (serviceIdx == 1) "1000:1250, 1500:1900" else ""
+            val raw = prefs.getString(key, defaultVal)
             currentQuickAmounts = ArrayList()
             raw?.split(",")?.forEach { item ->
                 val parts = item.trim().split(":")
@@ -133,36 +140,117 @@ class MainActivity : AppCompatActivity() {
                 else if (parts.size == 1 && parts[0].trim().isNotEmpty()) currentQuickAmounts.add(Pair(parts[0].trim(), parts[0].trim()))
             }
             val displayList = ArrayList<String>().apply { add("اختر الفئة...") }
-            currentQuickAmounts.forEach { displayList.add("مبلغ: " + it.first + " رصيد | التكلفة: " + it.second + " ل.س") }
+            currentQuickAmounts.forEach { displayList.add("مبلغ: " + it.first + " | التكلفة: " + it.second + " ل.س") }
             spinnerQuickAmounts.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, displayList)
-            inputTransferAmount.setText(""); inputTransferPrice.setText("")
         }
-        rbSyr.setOnCheckedChangeListener { _, isChecked -> if(isChecked) updateSpinner(true) }
-        rbMtn.setOnCheckedChangeListener { _, isChecked -> if(isChecked) updateSpinner(false) }
+
+        fun checkAndSaveQuickAmount(amount: String, price: String, serviceIndex: Int) {
+            if (amount.isEmpty() || price.isEmpty()) return
+            val exists = currentQuickAmounts.any { it.first == amount && it.second == price }
+            if (!exists) {
+                val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+                val key = amountKeys[serviceIndex]
+                val currentStr = prefs.getString(key, "") ?: ""
+                val newPair = amount + ":" + price
+                val newStr = if (currentStr.isEmpty()) newPair else currentStr + ", " + newPair
+                prefs.edit().putString(key, newStr).apply()
+                updateSpinner(serviceIndex)
+            }
+        }
+
+        spinnerServiceType.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                updateSpinner(position)
+                inputTransferAmount.setText(""); inputTransferPrice.setText("")
+                if (position <= 1) {
+                    btnExecuteTransfer.visibility = View.VISIBLE
+                    layoutDirectActions.visibility = View.GONE
+                } else {
+                    btnExecuteTransfer.visibility = View.GONE
+                    layoutDirectActions.visibility = View.VISIBLE
+                }
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
         spinnerQuickAmounts.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 if (position > 0) { inputTransferAmount.setText(currentQuickAmounts[position - 1].first); inputTransferPrice.setText(currentQuickAmounts[position - 1].second) }
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
+
         btnExecuteTransfer.setOnClickListener {
-            val selectedName = inputTransferCustomer.text.toString().trim(); val amountStr = inputTransferAmount.text.toString().trim(); val priceStr = inputTransferPrice.text.toString().trim(); val isSyr = rbSyr.isChecked
+            val selectedName = inputTransferCustomer.text.toString().trim()
+            val amountStr = inputTransferAmount.text.toString().trim()
+            val priceStr = inputTransferPrice.text.toString().trim()
+            val svcIdx = spinnerServiceType.selectedItemPosition
+            val isSyr = svcIdx == 0
             val customer = customerList.find { it.name == selectedName }
             if (customer == null) { Toast.makeText(this, "اختر زبون مسجل", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
             val targetPhone = if (isSyr) customer.phoneSyriatel else customer.phoneMtn
             if (targetPhone.isEmpty()) { Toast.makeText(this, "لا يوجد رقم للشبكة", Toast.LENGTH_LONG).show(); return@setOnClickListener }
             if (amountStr.isEmpty() || priceStr.isEmpty()) { Toast.makeText(this, "أدخل الرصيد والسعر", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+
+            checkAndSaveQuickAmount(amountStr, priceStr, svcIdx)
+
             val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
             val pin = if(isSyr) prefs.getString("syr_pin", "0000") else prefs.getString("mtn_pin", "0000")
             val codeTemplate = if(isSyr) prefs.getString("syr_code", "*150*رقم*مبلغ*رمز#") else prefs.getString("mtn_code", "*150*رقم*مبلغ*رمز#")
             val safePin = if (pin.isNullOrEmpty()) "0000" else pin
             val safeTemplate = if (codeTemplate.isNullOrEmpty()) "*150*رقم*مبلغ*رمز#" else codeTemplate
+            
             var ussd = safeTemplate.replace("رقم", targetPhone).replace("مبلغ", amountStr).replace("رمز", safePin)
             if (ussd.endsWith("#")) ussd = ussd.dropLast(1)
             pendingUssdCode = ussd + Uri.encode("#")
+            
             lastTransName = selectedName; lastTransAmount = amountStr.toIntOrNull() ?: 0; lastTransPrice = priceStr.toIntOrNull() ?: 0; lastTransNet = if(isSyr) "Syr" else "MTN"
-            executingPendingId = -1; waitingForTransferConfirm = true; checkPermissionAndCall()
+            lastServiceType = servicesArray[svcIdx]
+            executingPendingId = -1; waitingForTransferConfirm = true
+            checkPermissionAndCall()
         }
+
+        btnDoneDebt.setOnClickListener {
+            val selectedName = inputTransferCustomer.text.toString().trim()
+            val amountStr = inputTransferAmount.text.toString().trim()
+            val priceStr = inputTransferPrice.text.toString().trim()
+            val svcIdx = spinnerServiceType.selectedItemPosition
+            val serviceName = servicesArray[svcIdx]
+            val customer = customerList.find { it.name == selectedName }
+            if (customer == null) { Toast.makeText(this, "اختر زبون مسجل", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+            if (amountStr.isEmpty() || priceStr.isEmpty()) { Toast.makeText(this, "أدخل الرصيد والسعر", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+            
+            checkAndSaveQuickAmount(amountStr, priceStr, svcIdx)
+            val price = priceStr.toIntOrNull() ?: 0
+            val amount = amountStr.toIntOrNull() ?: 0
+            val note = "تحويل " + amount + " (" + serviceName + ")"
+            if (dbHelper.addTransaction(selectedName, price, 1, note, getCurrentDateString(), serviceName)) {
+                Toast.makeText(this, "تم قيد " + price + " ل.س كدين", Toast.LENGTH_SHORT).show()
+                inputTransferCustomer.setText(""); inputTransferAmount.setText(""); inputTransferPrice.setText("")
+                loadAllData()
+            }
+        }
+
+        btnAddPending.setOnClickListener {
+            val selectedName = inputTransferCustomer.text.toString().trim()
+            val amountStr = inputTransferAmount.text.toString().trim()
+            val priceStr = inputTransferPrice.text.toString().trim()
+            val svcIdx = spinnerServiceType.selectedItemPosition
+            val serviceName = servicesArray[svcIdx]
+            val customer = customerList.find { it.name == selectedName }
+            if (customer == null) { Toast.makeText(this, "اختر زبون مسجل", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+            if (amountStr.isEmpty() || priceStr.isEmpty()) { Toast.makeText(this, "أدخل الرصيد والسعر", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+            
+            checkAndSaveQuickAmount(amountStr, priceStr, svcIdx)
+            val price = priceStr.toIntOrNull() ?: 0
+            val amount = amountStr.toIntOrNull() ?: 0
+            val net = "Direct"
+            if (dbHelper.addPending(selectedName, net, amount, price, getCurrentDateString(), serviceName)) {
+                Toast.makeText(this, "تم الحفظ في المعلقات", Toast.LENGTH_SHORT).show()
+                inputTransferCustomer.setText(""); inputTransferAmount.setText(""); inputTransferPrice.setText("")
+                loadAllData()
+            }
+        }
+
         btnShowPending.setOnClickListener { showPendingDialog() }
         val btnToggleCustomers = findViewById(R.id.btn_toggle_customers) as Button
         val recyclerCustomers = findViewById(R.id.recycler_customers) as RecyclerView
@@ -210,26 +298,26 @@ class MainActivity : AppCompatActivity() {
         val inputTransCustomer = findViewById(R.id.input_trans_customer) as AutoCompleteTextView; val inputTransAmount = findViewById(R.id.input_trans_amount) as EditText; val inputTransNote = findViewById(R.id.input_trans_note) as EditText; val btnSaveTrans = findViewById(R.id.btn_save_trans) as Button; inputTransCustomer.setOnTouchListener { _, _ -> inputTransCustomer.showDropDown(); false }
         btnSaveTrans.setOnClickListener {
             val name = inputTransCustomer.text.toString().trim(); val amountStr = inputTransAmount.text.toString().trim()
-            if (name.isNotEmpty() && amountStr.isNotEmpty()) { if (dbHelper.addTransaction(name, amountStr.toIntOrNull() ?: 0, 2, inputTransNote.text.toString().trim(), getCurrentDateString())) { inputTransCustomer.text.clear(); inputTransAmount.text.clear(); inputTransNote.text.clear(); loadAllData(); Toast.makeText(this, "تم تسجيل الدفعة بنجاح", Toast.LENGTH_SHORT).show() } } else { Toast.makeText(this, "أدخل الاسم والمبلغ", Toast.LENGTH_SHORT).show() }
+            if (name.isNotEmpty() && amountStr.isNotEmpty()) { if (dbHelper.addTransaction(name, amountStr.toIntOrNull() ?: 0, 2, inputTransNote.text.toString().trim(), getCurrentDateString(), "")) { inputTransCustomer.text.clear(); inputTransAmount.text.clear(); inputTransNote.text.clear(); loadAllData(); Toast.makeText(this, "تم تسجيل الدفعة بنجاح", Toast.LENGTH_SHORT).show() } } else { Toast.makeText(this, "أدخل الاسم والمبلغ", Toast.LENGTH_SHORT).show() }
         }
         val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE); val inputSyrPin = findViewById(R.id.input_settings_syr_pin) as EditText; val inputSyrCode = findViewById(R.id.input_settings_syr_code) as EditText; val inputSyrAmounts = findViewById(R.id.input_settings_syr_amounts) as EditText; val inputMtnPin = findViewById(R.id.input_settings_mtn_pin) as EditText; val inputMtnCode = findViewById(R.id.input_settings_mtn_code) as EditText; val inputMtnAmounts = findViewById(R.id.input_settings_mtn_amounts) as EditText
         inputSyrPin.setText(prefs.getString("syr_pin", "")); inputSyrCode.setText(prefs.getString("syr_code", "*150*رقم*مبلغ*رمز#")); inputSyrAmounts.setText(prefs.getString("syr_amounts", "1000:1300, 2000:2600")); inputMtnPin.setText(prefs.getString("mtn_pin", "")); inputMtnCode.setText(prefs.getString("mtn_code", "*150*رقم*مبلغ*رمز#")); inputMtnAmounts.setText(prefs.getString("mtn_amounts", "1000:1250, 1500:1900"))
-        findViewById<Button>(R.id.btn_save_settings).setOnClickListener { prefs.edit().putString("syr_pin", inputSyrPin.text.toString().trim()).putString("syr_code", inputSyrCode.text.toString().trim()).putString("syr_amounts", inputSyrAmounts.text.toString().trim()).putString("mtn_pin", inputMtnPin.text.toString().trim()).putString("mtn_code", inputMtnCode.text.toString().trim()).putString("mtn_amounts", inputMtnAmounts.text.toString().trim()).apply(); Toast.makeText(this, "تم الحفظ", Toast.LENGTH_SHORT).show(); updateSpinner(rbSyr.isChecked) }
+        findViewById<Button>(R.id.btn_save_settings).setOnClickListener { prefs.edit().putString("syr_pin", inputSyrPin.text.toString().trim()).putString("syr_code", inputSyrCode.text.toString().trim()).putString("syr_amounts", inputSyrAmounts.text.toString().trim()).putString("mtn_pin", inputMtnPin.text.toString().trim()).putString("mtn_code", inputMtnCode.text.toString().trim()).putString("mtn_amounts", inputMtnAmounts.text.toString().trim()).apply(); Toast.makeText(this, "تم الحفظ", Toast.LENGTH_SHORT).show(); updateSpinner(spinnerServiceType.selectedItemPosition) }
         findViewById<Button>(R.id.btn_share_backup).setOnClickListener { shareBackup() }
         val switchDarkModeId = resources.getIdentifier("switch_dark_mode", "id", packageName)
         if (switchDarkModeId != 0) {
             val switchDarkMode = findViewById<Switch>(switchDarkModeId); switchDarkMode.isChecked = prefs.getBoolean("dark_mode", false)
             switchDarkMode.setOnCheckedChangeListener { _, isChecked -> prefs.edit().putBoolean("dark_mode", isChecked).apply(); if (isChecked) AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES) else AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO) }
         }
-        loadAllData(); updateSpinner(true); navTransfer.performClick()
+        loadAllData(); updateSpinner(0); navTransfer.performClick()
     }
-    private fun showStatementDateDialog(customer: Customer) { /* kept simple */ val view = LayoutInflater.from(this).inflate(R.layout.dialog_date_filter, null); val dialog = AlertDialog.Builder(this).setView(view).create(); val tvTitle = view.findViewById<TextView>(R.id.tv_dialog_title); tvTitle.text = "كشف حساب: " + customer.name; val btnFrom = view.findViewById(R.id.btn_pick_from) as Button; val btnTo = view.findViewById(R.id.btn_pick_to) as Button; var tempFrom = ""; var tempTo = ""; val cal = Calendar.getInstance(); btnFrom.setOnClickListener { DatePickerDialog(this, { _, y, m, d -> tempFrom = String.format(Locale.US, "%04d/%02d/%02d", y, m + 1, d); btnFrom.text = "من تاريخ: " + tempFrom }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show() }; btnTo.setOnClickListener { DatePickerDialog(this, { _, y, m, d -> tempTo = String.format(Locale.US, "%04d/%02d/%02d", y, m + 1, d); btnTo.text = "إلى تاريخ: " + tempTo }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show() }; (view.findViewById(R.id.btn_clear_dates) as Button).setOnClickListener { generateAndSharePDF(customer, "", ""); dialog.dismiss() }; (view.findViewById(R.id.btn_apply_dates) as Button).setOnClickListener { generateAndSharePDF(customer, tempFrom, tempTo); dialog.dismiss() }; dialog.show() }
+    private fun showStatementDateDialog(customer: Customer) { val view = LayoutInflater.from(this).inflate(R.layout.dialog_date_filter, null); val dialog = AlertDialog.Builder(this).setView(view).create(); val tvTitle = view.findViewById<TextView>(R.id.tv_dialog_title); tvTitle.text = "كشف حساب: " + customer.name; val btnFrom = view.findViewById(R.id.btn_pick_from) as Button; val btnTo = view.findViewById(R.id.btn_pick_to) as Button; var tempFrom = ""; var tempTo = ""; val cal = Calendar.getInstance(); btnFrom.setOnClickListener { DatePickerDialog(this, { _, y, m, d -> tempFrom = String.format(Locale.US, "%04d/%02d/%02d", y, m + 1, d); btnFrom.text = "من تاريخ: " + tempFrom }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show() }; btnTo.setOnClickListener { DatePickerDialog(this, { _, y, m, d -> tempTo = String.format(Locale.US, "%04d/%02d/%02d", y, m + 1, d); btnTo.text = "إلى تاريخ: " + tempTo }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show() }; (view.findViewById(R.id.btn_clear_dates) as Button).setOnClickListener { generateAndSharePDF(customer, "", ""); dialog.dismiss() }; (view.findViewById(R.id.btn_apply_dates) as Button).setOnClickListener { generateAndSharePDF(customer, tempFrom, tempTo); dialog.dismiss() }; dialog.show() }
     private fun generateAndSharePDF(customer: Customer, fromDate: String, toDate: String) { try { val pdfDocument = PdfDocument(); var pageNum = 1; var pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNum).create(); var page = pdfDocument.startPage(pageInfo); var canvas = page.canvas; val paint = Paint().apply { textSize = 14f; color = Color.BLACK; textAlign = Paint.Align.RIGHT }; val boldPaint = Paint().apply { textSize = 14f; color = Color.BLACK; isFakeBoldText = true; textAlign = Paint.Align.RIGHT }; val titlePaint = Paint().apply { textSize = 22f; color = Color.parseColor("#FF6B00"); isFakeBoldText = true; textAlign = Paint.Align.RIGHT }; var y = 60f; val startX = 550f; canvas.drawText("كشف حساب زبون", startX, y, titlePaint); y += 40f; canvas.drawText("اسم الزبون: " + customer.name, startX, y, boldPaint); y += 25f; val dateText = if (fromDate.isNotEmpty() || toDate.isNotEmpty()) "الفترة: " + (if(fromDate.isEmpty()) "البداية" else fromDate) + " إلى " + (if(toDate.isEmpty()) "النهاية" else toDate) else "الفترة: جميع الحركات السابقة"; canvas.drawText(dateText, startX, y, paint); y += 50f; boldPaint.color = Color.parseColor("#2C3E50"); canvas.drawText("التاريخ", 160f, y, boldPaint); canvas.drawText("النوع", 260f, y, boldPaint); canvas.drawText("المبلغ (ل.س)", 380f, y, boldPaint); canvas.drawText("التفاصيل", startX, y, boldPaint); y += 15f; canvas.drawLine(50f, y, 550f, y, boldPaint); y += 30f; var filtered = transactionList.filter { it.customerName == customer.name }.sortedBy { it.id }; if (fromDate.isNotEmpty()) filtered = filtered.filter { it.date.substring(0, 10) >= fromDate }; if (toDate.isNotEmpty()) filtered = filtered.filter { it.date.substring(0, 10) <= toDate }; var totalDebt = 0; var totalPay = 0; for (t in filtered) { if (y > 780f) { pdfDocument.finishPage(page); pageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; y = 60f; boldPaint.color = Color.parseColor("#2C3E50"); canvas.drawText("التاريخ", 160f, y, boldPaint); canvas.drawText("النوع", 260f, y, boldPaint); canvas.drawText("المبلغ (ل.س)", 380f, y, boldPaint); canvas.drawText("التفاصيل", startX, y, boldPaint); y += 15f; canvas.drawLine(50f, y, 550f, y, boldPaint); y += 30f }; if (t.type == 1) totalDebt += t.amount else totalPay += t.amount; val typeStr = if (t.type == 1) "دين" else "دفعة"; paint.color = Color.GRAY; canvas.drawText(t.date.substring(0, 10), 160f, y, paint); boldPaint.color = if (t.type == 1) Color.RED else Color.parseColor("#388E3C"); canvas.drawText(typeStr, 260f, y, boldPaint); paint.color = Color.BLACK; canvas.drawText(NumberFormat.getNumberInstance(Locale.US).format(t.amount), 380f, y, paint); var note = t.note; if (note.length > 18) note = note.substring(0, 18) + "..!"; canvas.drawText(note, startX, y, paint); y += 30f }; if (y > 700f) { pdfDocument.finishPage(page); pageNum++; pageInfo = PdfDocument.PageInfo.Builder(595, 842, pageNum).create(); page = pdfDocument.startPage(pageInfo); canvas = page.canvas; y = 60f }; y += 10f; boldPaint.color = Color.BLACK; canvas.drawLine(50f, y, 550f, y, boldPaint); y += 40f; boldPaint.textSize = 16f; boldPaint.color = Color.RED; canvas.drawText("مجموع ديون الفترة: " + NumberFormat.getNumberInstance(Locale.US).format(totalDebt), startX, y, boldPaint); y += 30f; boldPaint.color = Color.parseColor("#388E3C"); canvas.drawText("مجموع دفعات الفترة: " + NumberFormat.getNumberInstance(Locale.US).format(totalPay), startX, y, boldPaint); y += 30f; val net = totalDebt - totalPay; boldPaint.textSize = 18f; boldPaint.color = if (net > 0) Color.RED else Color.parseColor("#388E3C"); val netText = if (net > 0) "الرصيد المتبقي لنا: " else "الرصيد المتبقي للزبون: "; canvas.drawText(netText + NumberFormat.getNumberInstance(Locale.US).format(Math.abs(net)) + " ل.س", startX, y, boldPaint); pdfDocument.finishPage(page); val backupDir = getExternalFilesDir(null); val safeName = customer.name.replace(" ", "_"); val pdfFile = File(backupDir, "Statement_" + safeName + ".pdf"); pdfDocument.writeTo(FileOutputStream(pdfFile)); pdfDocument.close(); val uri = FileProvider.getUriForFile(this, "com.pos.transferapp.fileprovider", pdfFile); val shareIntent = Intent(Intent.ACTION_SEND).apply { type = "application/pdf"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }; startActivity(Intent.createChooser(shareIntent, "إرسال كشف الحساب إلى الواتساب...")) } catch (e: Exception) { Toast.makeText(this, "خطأ في تصميم الـ PDF: " + e.message, Toast.LENGTH_LONG).show() } }
     override fun onResume() { super.onResume(); if (waitingForTransferConfirm) { waitingForTransferConfirm = false; showTransferConfirmDialog() } }
-    private fun showTransferConfirmDialog() { val view = LayoutInflater.from(this).inflate(R.layout.dialog_transfer_confirm, null); val dialog = AlertDialog.Builder(this).setView(view).setCancelable(false).create(); val tvMessage = view.findViewById<TextView>(R.id.tv_confirm_message); tvMessage.text = "هل تمت حوالة " + lastTransAmount + " رصيد لـ " + lastTransName + " بنجاح؟"; view.findViewById<Button>(R.id.btn_confirm_yes).setOnClickListener { dbHelper.addTransaction(lastTransName, lastTransPrice, 1, "تحويل " + lastTransAmount + " رصيد (" + lastTransNet + ")", getCurrentDateString()); if (executingPendingId != -1) { dbHelper.deletePending(executingPendingId) }; Toast.makeText(this, "تم قيد " + lastTransPrice + " ل.س كدين", Toast.LENGTH_SHORT).show(); executingPendingId = -1; loadAllData(); dialog.dismiss() }; view.findViewById<Button>(R.id.btn_confirm_later).setOnClickListener { if (executingPendingId == -1) { dbHelper.addPending(lastTransName, lastTransNet, lastTransAmount, lastTransPrice, getCurrentDateString()); Toast.makeText(this, "تم الحفظ في المعلقات", Toast.LENGTH_SHORT).show() }; executingPendingId = -1; loadAllData(); dialog.dismiss() }; view.findViewById<Button>(R.id.btn_confirm_cancel).setOnClickListener { executingPendingId = -1; dialog.dismiss() }; dialog.show() }
-    private fun showPendingDialog() { val view = LayoutInflater.from(this).inflate(R.layout.dialog_pending, null); val dialog = AlertDialog.Builder(this).setView(view).create(); val recycler = view.findViewById(R.id.recycler_pending) as RecyclerView; recycler.layoutManager = LinearLayoutManager(this); fun refreshPending() { val list = dbHelper.getAllPending(); if (list.isEmpty()) { dialog.dismiss(); Toast.makeText(this, "لا يوجد طلبات معلقة", Toast.LENGTH_SHORT).show() }; recycler.adapter = PendingAdapter(list, { pending -> val customer = customerList.find { it.name == pending.customerName }; if (customer != null) { val isSyr = pending.network == "Syr"; val targetPhone = if (isSyr) customer.phoneSyriatel else customer.phoneMtn; if (targetPhone.isNotEmpty()) { val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE); val pin = if(isSyr) prefs.getString("syr_pin", "0000") else prefs.getString("mtn_pin", "0000"); val codeTemplate = if(isSyr) prefs.getString("syr_code", "*150*رقم*مبلغ*رمز#") else prefs.getString("mtn_code", "*150*رقم*مبلغ*رمز#"); val safePin = if (pin.isNullOrEmpty()) "0000" else pin; val safeTemplate = if (codeTemplate.isNullOrEmpty()) "*150*رقم*مبلغ*رمز#" else codeTemplate; var ussd = safeTemplate.replace("رقم", targetPhone).replace("مبلغ", pending.amount.toString()).replace("رمز", safePin); if (ussd.endsWith("#")) ussd = ussd.dropLast(1); pendingUssdCode = ussd + Uri.encode("#"); lastTransName = pending.customerName; lastTransAmount = pending.amount; lastTransPrice = pending.price; lastTransNet = pending.network; executingPendingId = pending.id; waitingForTransferConfirm = true; checkPermissionAndCall(); dialog.dismiss() } else { Toast.makeText(this, "رقم الزبون غير موجود", Toast.LENGTH_SHORT).show() } } else { Toast.makeText(this, "الزبون محذوف!", Toast.LENGTH_SHORT).show() } }, { pending -> AlertDialog.Builder(this).setTitle("تأكيد الحذف").setMessage("هل تريد بالتأكيد حذف هذا الطلب المعلق؟").setPositiveButton("حذف") { _, _ -> dbHelper.deletePending(pending.id); loadAllData(); refreshPending() }.setNegativeButton("إلغاء", null).show() }) }; refreshPending(); dialog.show() }
+    private fun showTransferConfirmDialog() { val view = LayoutInflater.from(this).inflate(R.layout.dialog_transfer_confirm, null); val dialog = AlertDialog.Builder(this).setView(view).setCancelable(false).create(); val tvMessage = view.findViewById<TextView>(R.id.tv_confirm_message); tvMessage.text = "هل تمت حوالة " + lastTransAmount + " رصيد لـ " + lastTransName + " بنجاح؟"; view.findViewById<Button>(R.id.btn_confirm_yes).setOnClickListener { dbHelper.addTransaction(lastTransName, lastTransPrice, 1, "تحويل " + lastTransAmount + " رصيد (" + lastServiceType + ")", getCurrentDateString(), lastServiceType); if (executingPendingId != -1) { dbHelper.deletePending(executingPendingId) }; Toast.makeText(this, "تم قيد " + lastTransPrice + " ل.س كدين", Toast.LENGTH_SHORT).show(); executingPendingId = -1; loadAllData(); dialog.dismiss() }; view.findViewById<Button>(R.id.btn_confirm_later).setOnClickListener { if (executingPendingId == -1) { dbHelper.addPending(lastTransName, lastTransNet, lastTransAmount, lastTransPrice, getCurrentDateString(), lastServiceType); Toast.makeText(this, "تم الحفظ في المعلقات", Toast.LENGTH_SHORT).show() }; executingPendingId = -1; loadAllData(); dialog.dismiss() }; view.findViewById<Button>(R.id.btn_confirm_cancel).setOnClickListener { executingPendingId = -1; dialog.dismiss() }; dialog.show() }
+    private fun showPendingDialog() { val view = LayoutInflater.from(this).inflate(R.layout.dialog_pending, null); val dialog = AlertDialog.Builder(this).setView(view).create(); val recycler = view.findViewById(R.id.recycler_pending) as RecyclerView; recycler.layoutManager = LinearLayoutManager(this); fun refreshPending() { val list = dbHelper.getAllPending(); if (list.isEmpty()) { dialog.dismiss(); Toast.makeText(this, "لا يوجد طلبات معلقة", Toast.LENGTH_SHORT).show() }; recycler.adapter = PendingAdapter(list, { pending -> val customer = customerList.find { it.name == pending.customerName }; if (customer != null) { val isUSSD = pending.serviceType == "رصيد Syriatel" || pending.serviceType == "رصيد MTN" || pending.serviceType.isEmpty(); if(isUSSD) { val isSyr = pending.serviceType == "رصيد Syriatel" || pending.network == "Syr"; val targetPhone = if (isSyr) customer.phoneSyriatel else customer.phoneMtn; if (targetPhone.isNotEmpty()) { val prefs = getSharedPreferences("AppSettings", Context.MODE_PRIVATE); val pin = if(isSyr) prefs.getString("syr_pin", "0000") else prefs.getString("mtn_pin", "0000"); val codeTemplate = if(isSyr) prefs.getString("syr_code", "*150*رقم*مبلغ*رمز#") else prefs.getString("mtn_code", "*150*رقم*مبلغ*رمز#"); val safePin = if (pin.isNullOrEmpty()) "0000" else pin; val safeTemplate = if (codeTemplate.isNullOrEmpty()) "*150*رقم*مبلغ*رمز#" else codeTemplate; var ussd = safeTemplate.replace("رقم", targetPhone).replace("مبلغ", pending.amount.toString()).replace("رمز", safePin); if (ussd.endsWith("#")) ussd = ussd.dropLast(1); pendingUssdCode = ussd + Uri.encode("#"); lastTransName = pending.customerName; lastTransAmount = pending.amount; lastTransPrice = pending.price; lastTransNet = pending.network; lastServiceType = if(pending.serviceType.isNotEmpty()) pending.serviceType else (if(isSyr) "رصيد Syriatel" else "رصيد MTN"); executingPendingId = pending.id; waitingForTransferConfirm = true; checkPermissionAndCall(); dialog.dismiss() } else { Toast.makeText(this, "رقم الزبون غير موجود", Toast.LENGTH_SHORT).show() } } else { val note = "تحويل " + pending.amount + " (" + pending.serviceType + ")"; dbHelper.addTransaction(pending.customerName, pending.price, 1, note, getCurrentDateString(), pending.serviceType); dbHelper.deletePending(pending.id); Toast.makeText(this, "تم قيد " + pending.price + " ل.س كدين", Toast.LENGTH_SHORT).show(); loadAllData(); refreshPending(); dialog.dismiss() } } else { Toast.makeText(this, "الزبون محذوف!", Toast.LENGTH_SHORT).show() } }, { pending -> AlertDialog.Builder(this).setTitle("تأكيد الحذف").setMessage("هل تريد بالتأكيد حذف هذا الطلب المعلق؟").setPositiveButton("حذف") { _, _ -> dbHelper.deletePending(pending.id); loadAllData(); refreshPending() }.setNegativeButton("إلغاء", null).show() }) }; refreshPending(); dialog.show() }
     private fun showEditCustomerDialog(customer: Customer) { val view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_cust, null); val dialog = AlertDialog.Builder(this).setView(view).create(); val inputName = view.findViewById(R.id.edit_cust_name) as EditText; val inputSyr = view.findViewById(R.id.edit_cust_syr) as EditText; val inputMtn = view.findViewById(R.id.edit_cust_mtn) as EditText; inputName.setText(customer.name); inputSyr.setText(customer.phoneSyriatel); inputMtn.setText(customer.phoneMtn); (view.findViewById(R.id.btn_update_cust) as Button).setOnClickListener { val n = inputName.text.toString().trim(); val s = inputSyr.text.toString().trim(); val m = inputMtn.text.toString().trim(); if (n.isNotEmpty() && (s.isNotEmpty() || m.isNotEmpty())) { if (dbHelper.updateCustomer(customer.id, customer.name, n, s, m)) { Toast.makeText(this, "تم التعديل", Toast.LENGTH_SHORT).show(); loadAllData(); dialog.dismiss() } } else { Toast.makeText(this, "البيانات غير مكتملة", Toast.LENGTH_SHORT).show() } }; dialog.show() }
-    private fun showEditTransactionDialog(trans: Transaction) { val view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_trans, null); val dialog = AlertDialog.Builder(this).setView(view).create(); (view.findViewById(R.id.tv_edit_trans_name) as TextView).text = "الزبون: " + trans.customerName; val tvTypeLabel = view.findViewById<TextView>(R.id.tv_edit_trans_type_label); if (trans.type == 1) { tvTypeLabel.text = "نوع الحركة: دين (تم من التحويل)"; tvTypeLabel.setTextColor(Color.parseColor("#D32F2F")) } else { tvTypeLabel.text = "نوع الحركة: دفعة (تسديد)"; tvTypeLabel.setTextColor(Color.parseColor("#388E3C")) }; val inputAmount = view.findViewById(R.id.edit_trans_amount) as EditText; val inputNote = view.findViewById(R.id.edit_trans_note) as EditText; inputAmount.setText(trans.amount.toString()); inputNote.setText(trans.note); (view.findViewById(R.id.btn_update_trans) as Button).setOnClickListener { val a = inputAmount.text.toString().trim().toIntOrNull() ?: 0; if (a > 0) { if (dbHelper.updateTransaction(trans.id, a, trans.type, inputNote.text.toString().trim())) { Toast.makeText(this, "تم التعديل", Toast.LENGTH_SHORT).show(); loadAllData(); dialog.dismiss() } } else { Toast.makeText(this, "أدخل مبلغ صحيح", Toast.LENGTH_SHORT).show() } }; dialog.show() }
+    private fun showEditTransactionDialog(trans: Transaction) { val view = LayoutInflater.from(this).inflate(R.layout.dialog_edit_trans, null); val dialog = AlertDialog.Builder(this).setView(view).create(); (view.findViewById(R.id.tv_edit_trans_name) as TextView).text = "الزبون: " + trans.customerName; val tvTypeLabel = view.findViewById<TextView>(R.id.tv_edit_trans_type_label); if (trans.type == 1) { tvTypeLabel.text = "نوع الحركة: دين (تم من التحويل)"; tvTypeLabel.setTextColor(Color.parseColor("#D32F2F")) } else { tvTypeLabel.text = "نوع الحركة: دفعة (تسديد)"; tvTypeLabel.setTextColor(Color.parseColor("#388E3C")) }; val inputAmount = view.findViewById(R.id.edit_trans_amount) as EditText; val inputNote = view.findViewById(R.id.edit_trans_note) as EditText; inputAmount.setText(trans.amount.toString()); inputNote.setText(trans.note); (view.findViewById(R.id.btn_update_trans) as Button).setOnClickListener { val a = inputAmount.text.toString().trim().toIntOrNull() ?: 0; if (a > 0) { if (dbHelper.updateTransaction(trans.id, a, trans.type, inputNote.text.toString().trim(), trans.serviceType)) { Toast.makeText(this, "تم التعديل", Toast.LENGTH_SHORT).show(); loadAllData(); dialog.dismiss() } } else { Toast.makeText(this, "أدخل مبلغ صحيح", Toast.LENGTH_SHORT).show() } }; dialog.show() }
     private fun loadAllData() { customerList.clear(); customerList.addAll(dbHelper.getAllCustomers()); val qCust = (findViewById(R.id.input_search_cust) as EditText).text.toString().lowercase(); customerAdapter.customers = if(qCust.isEmpty()) customerList else customerList.filter { it.name.lowercase().contains(qCust) }; customerAdapter.notifyDataSetChanged(); val recyclerCustomers = findViewById<RecyclerView>(R.id.recycler_customers); recyclerCustomers.visibility = if (qCust.isNotEmpty() || isCustListVisible) View.VISIBLE else View.GONE; customerNamesList.clear(); customerNamesList.addAll(customerList.map { it.name }); autoAdapterTransfer = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, customerNamesList); (findViewById(R.id.input_transfer_customer) as AutoCompleteTextView).setAdapter(autoAdapterTransfer); autoAdapterTrans = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, customerNamesList); (findViewById(R.id.input_trans_customer) as AutoCompleteTextView).setAdapter(autoAdapterTrans); transactionList.clear(); transactionList.addAll(dbHelper.getAllTransactions()); val todayStr = SimpleDateFormat("yyyy/MM/dd", Locale.US).format(Date()); val todayTrans = transactionList.filter { it.date.startsWith(todayStr) }; val todayDebt = todayTrans.filter { it.type == 1 }.sumOf { it.amount }; val todayPayment = todayTrans.filter { it.type == 2 }.sumOf { it.amount }; (findViewById(R.id.tv_today_debt) as TextView).text = NumberFormat.getNumberInstance(Locale.US).format(todayDebt) + " ل.س"; (findViewById(R.id.tv_today_payment) as TextView).text = NumberFormat.getNumberInstance(Locale.US).format(todayPayment) + " ل.س"; (findViewById(R.id.tv_total_debt) as TextView).text = NumberFormat.getNumberInstance(Locale.US).format(dbHelper.getTotalDebt()) + " ل.س"; val pendingCount = dbHelper.getAllPending().size; (findViewById(R.id.btn_show_pending) as Button).text = "الطلبات المعلقة (" + pendingCount + ")"; val qTrans = (findViewById(R.id.input_search_trans) as EditText).text.toString().lowercase(); var filteredTrans = transactionList.toList(); if (qTrans.isNotEmpty()) filteredTrans = filteredTrans.filter { it.customerName.lowercase().contains(qTrans) }; if (filterFromDate.isNotEmpty()) filteredTrans = filteredTrans.filter { it.date.substring(0, 10) >= filterFromDate }; if (filterToDate.isNotEmpty()) filteredTrans = filteredTrans.filter { it.date.substring(0, 10) <= filterToDate }; transactionAdapter.transactions = filteredTrans; transactionAdapter.notifyDataSetChanged(); val hasSearch = qTrans.isNotEmpty() || filterFromDate.isNotEmpty() || filterToDate.isNotEmpty(); val recyclerTransactions = findViewById<RecyclerView>(R.id.recycler_transactions); recyclerTransactions.visibility = if (hasSearch || isTransListVisible) View.VISIBLE else View.GONE }
     private fun checkPermissionAndCall() { if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) { ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CALL_PHONE), CALL_REQUEST_CODE) } else { executeUSSD() } }
     private fun executeUSSD() { if (pendingUssdCode.isNotEmpty()) { startActivity(Intent(Intent.ACTION_CALL).apply { data = Uri.parse("tel:" + pendingUssdCode) }); pendingUssdCode = "" } }
@@ -239,7 +327,7 @@ class MainActivity : AppCompatActivity() {
 class PendingAdapter(var items: List<PendingRequest>, private val onExecute: (PendingRequest) -> Unit, private val onDelete: (PendingRequest) -> Unit) : RecyclerView.Adapter<PendingAdapter.ViewHolder>() {
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) { val tvName = view.findViewById(R.id.tv_pend_name) as TextView; val tvDetails = view.findViewById(R.id.tv_pend_details) as TextView; val tvDate = view.findViewById(R.id.tv_pend_date) as TextView; val btnExecute = view.findViewById(R.id.btn_pend_execute) as Button; val btnDelete = view.findViewById(R.id.btn_pend_delete) as TextView }
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.item_pending, parent, false))
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) { val item = items[position]; holder.tvName.text = item.customerName; holder.tvDetails.text = "رصيد: " + item.amount + " | تكلفة: " + item.price + " (" + item.network + ")"; holder.tvDate.text = item.date; holder.btnExecute.setOnClickListener { onExecute(item) }; holder.btnDelete.setOnClickListener { onDelete(item) } }
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) { val item = items[position]; holder.tvName.text = item.customerName; val svc = if(item.serviceType.isNotEmpty()) item.serviceType else item.network; holder.tvDetails.text = "رصيد: " + item.amount + " | تكلفة: " + item.price + " (" + svc + ")"; holder.tvDate.text = item.date; holder.btnExecute.setOnClickListener { onExecute(item) }; holder.btnDelete.setOnClickListener { onDelete(item) } }
     override fun getItemCount() = items.size
 }
 
