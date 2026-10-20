@@ -133,6 +133,8 @@ class MainActivity : AppCompatActivity() {
             executingPendingId = state.getInt("executing_pending_id", -1)
         }
         setContentView(R.layout.activity_main)
+        window.statusBarColor = ContextCompat.getColor(this, R.color.background)
+        window.navigationBarColor = ContextCompat.getColor(this, R.color.background)
         val blurRoot = window.decorView as ViewGroup
         listOf(
             findViewById<BlurView>(R.id.header_blur_view),
@@ -195,8 +197,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         fun updateNavUI(selected: String) {
-            val primaryColor = ContextCompat.getColor(this@MainActivity, R.color.colorPrimary)
-            val grayColor = ContextCompat.getColor(this@MainActivity, R.color.colorTextSecondary)
+            val primaryColor = ContextCompat.getColor(this@MainActivity, R.color.cyan)
+            val grayColor = ContextCompat.getColor(this@MainActivity, R.color.text_secondary)
             (navTransfer.getChildAt(0) as ImageView).setColorFilter(if (selected == "transfer") primaryColor else grayColor, PorterDuff.Mode.SRC_IN)
             (navTransfer.getChildAt(1) as TextView).setTextColor(if (selected == "transfer") primaryColor else grayColor)
             (navCustomers.getChildAt(0) as ImageView).setColorFilter(if (selected == "customers") primaryColor else grayColor, PorterDuff.Mode.SRC_IN)
@@ -302,8 +304,8 @@ class MainActivity : AppCompatActivity() {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 updateSpinner(position); inputTransferAmount.setText(""); inputTransferPrice.setText(""); validateTransferAmount()
                 layoutDirectActions.visibility = View.VISIBLE
-                btnDoneDebt.text = "تحويل / تنفيذ"
-                btnAddPending.text = "تعليق الطلب"
+                btnDoneDebt.text = getString(R.string.execute_transfer)
+                btnAddPending.text = getString(R.string.save_pending)
                 btnAddPending.visibility = View.VISIBLE
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -439,8 +441,14 @@ class MainActivity : AppCompatActivity() {
             val price = priceValue.toInt()
             val amount = amountValue.toInt()
             val net = "Direct"
-            if (dbHelper.addPending(selectedName, net, amount, price, getCurrentDateString(), serviceName, amount)) { rememberQuickCategory(serviceName, amount.toLong(), price.toLong()); Toast.makeText(this, "تم الحفظ في المعلقات", Toast.LENGTH_SHORT).show(); resetTransferUI(); loadAllData() }
-            else { Toast.makeText(this, "تعذر حفظ الطلب؛ تحقق من الرصيد والسعر", Toast.LENGTH_LONG).show() }
+            if (dbHelper.addPending(selectedName, net, amount, price, getCurrentDateString(), serviceName, amount)) {
+                rememberQuickCategory(serviceName, amount.toLong(), price.toLong())
+                Toast.makeText(this, R.string.saved_to_pending, Toast.LENGTH_SHORT).show()
+                resetTransferUI()
+                loadAllData()
+            } else {
+                Toast.makeText(this, "تعذر حفظ الطلب؛ تحقق من الرصيد والسعر", Toast.LENGTH_LONG).show()
+            }
         }
 
         btnShowPending.setOnClickListener { showPendingDialog() }
@@ -581,7 +589,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateQuickCategorySpinner(serviceIndex: Int) {
         if (serviceIndex !in servicesArray.indices) return
         currentQuickAmounts = ArrayList(dbHelper.getCategoriesByService(servicesArray[serviceIndex]))
-        val displayList = ArrayList<String>().apply { add("اختر الفئة...") }
+        val displayList = ArrayList<String>().apply { add(getString(R.string.choose_category)) }
         currentQuickAmounts.forEach { category ->
             displayList.add(
                 "الرصيد: ${NumberFormat.getNumberInstance(Locale.US).format(category.amount)} | السعر: ${NumberFormat.getNumberInstance(Locale.US).format(category.price)} ل.س"
@@ -598,15 +606,15 @@ class MainActivity : AppCompatActivity() {
         return object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, items) {
             override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
                 (super.getView(position, convertView, parent) as TextView).apply {
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.neon_label))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
                     textSize = 16f
                     gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.RIGHT
                 }
 
             override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View =
                 (super.getDropDownView(position, convertView, parent) as TextView).apply {
-                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.neon_label))
-                    setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.neon_background))
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_secondary))
+                    setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.background))
                     textSize = 16f
                     gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.RIGHT
                     setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
@@ -1449,7 +1457,8 @@ class MainActivity : AppCompatActivity() {
         (findViewById(R.id.tv_today_payment) as TextView).text = NumberFormat.getNumberInstance(Locale.US).format(todayPayment) + " ل.س"
         (findViewById(R.id.tv_total_debt) as TextView).text = NumberFormat.getNumberInstance(Locale.US).format(dbHelper.getTotalDebt()) + " ل.س"
         val pendingCount = dbHelper.getAllPending().size
-        (findViewById(R.id.btn_show_pending) as Button).text = "الطلبات المعلقة ($pendingCount)"
+        (findViewById(R.id.btn_show_pending) as Button).text =
+            getString(R.string.pending_orders, pendingCount)
         val qTrans = inputSearchTrans.text.toString().lowercase()
         var filteredTrans = transactionList.toList()
         val filterSvcIdx = findViewById<Spinner>(R.id.spinner_filter_service).selectedItemPosition

@@ -1,1 +1,34 @@
-<?xml version="1.0" encoding="utf-8"?><resources><color name="colorPrimary">#00E5FF</color><color name="colorPrimaryDark">#00B8D4</color><color name="colorAccent">#4CAF50</color><color name="headerBackground">#0F4C5C</color><color name="colorBackground">@color/neon_bg</color><color name="colorSurface">#161F32</color><color name="colorInput">#1E293B</color><color name="colorTextPrimary">#FFFFFF</color><color name="colorTextSecondary">#AAAAAA</color><color name="colorHint">#94A3B8</color><color name="colorDivider">#2A3B5C</color><color name="colorTextOnPrimary">#FFFFFF</color><color name="colorDanger">#EF5350</color><color name="colorSuccess">#4CAF50</color><color name="neon_bg">#050B14</color><color name="neon_cyan">#00D2FF</color><color name="neon_cyan_transparent">#2000D2FF</color><color name="neon_stroke">#3A86FF</color></resources>
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#00E5FF</color>
+    <color name="colorPrimaryDark">#00B8D4</color>
+    <color name="colorAccent">#4CAF50</color>
+    <color name="headerBackground">#0F4C5C</color>
+    <color name="colorBackground">@color/neon_bg</color>
+    <color name="colorSurface">#161F32</color>
+    <color name="colorInput">#1E293B</color>
+    <color name="colorTextPrimary">#FFFFFF</color>
+    <color name="colorTextSecondary">#AAAAAA</color>
+    <color name="colorHint">#94A3B8</color>
+    <color name="colorDivider">#2A3B5C</color>
+    <color name="colorTextOnPrimary">#FFFFFF</color>
+    <color name="colorDanger">#EF5350</color>
+    <color name="colorSuccess">#4CAF50</color>
+
+    <color name="background">#020D1D</color>
+    <color name="background_deep">#00101F</color>
+    <color name="panel">#A60A2847</color>
+    <color name="field">#D00B3761</color>
+    <color name="field_end">#C3134D7D</color>
+    <color name="cyan">#20D8FF</color>
+    <color name="blue">#128BFF</color>
+    <color name="text_primary">#E8F6FF</color>
+    <color name="text_secondary">#8EC8F4</color>
+    <color name="stroke">#348ED8</color>
+    <color name="transparent">#00000000</color>
+
+    <color name="neon_bg">#050B14</color>
+    <color name="neon_cyan">#00D2FF</color>
+    <color name="neon_cyan_transparent">#2000D2FF</color>
+    <color name="neon_stroke">#3A86FF</color>
+</resources>
