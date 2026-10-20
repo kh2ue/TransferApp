@@ -3,9 +3,10 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.util.Log
 
 data class Customer(val id: Int, val name: String, val phoneSyriatel: String, val phoneMtn: String)
-data class Transaction(val id: Int, val customerName: String, val amount: Int, val type: Int, val note: String, val date: String, val serviceType: String)
+data class Transaction(val id: Int, val customerName: String, val amount: Int, val type: Int, val note: String, val date: String, val serviceType: String, val serviceAmount: Int = 0)
 data class PendingRequest(val id: Int, val customerName: String, val network: String, val amount: Int, val price: Int, val date: String, val serviceType: String, val serviceAmount: Int)
 data class CompanyPurchase(val id: Int, val companyName: String, val amount: Int, val cost: Int, val date: String, val note: String)
 data class CompanyPayment(val id: Int, val companyName: String, val paidAmount: Int, val date: String, val note: String)
@@ -15,6 +16,24 @@ data class SalesReport(val totalCredit: Long, val totalFinancial: Long, val coun
 data class ServiceCategory(val id: Int, val serviceName: String, val amount: Long, val price: Long)
 
 class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.db", null, 12) {
+    override fun onConfigure(db: SQLiteDatabase) {
+        db.rawQuery("PRAGMA busy_timeout=5000", null).use { }
+        db.rawQuery("PRAGMA journal_mode=DELETE", null).use { cursor ->
+            if (cursor.moveToFirst()) {
+                val mode = cursor.getString(0)
+                if (!mode.equals("delete", ignoreCase = true)) {
+                    Log.w(TAG, "Database journal mode stayed $mode")
+                }
+            }
+        }
+        db.execSQL("PRAGMA synchronous=FULL")
+    }
+
+    fun flushToDisk() {
+        val db = writableDatabase
+        db.rawQuery("PRAGMA wal_checkpoint(TRUNCATE)", null).use { }
+    }
+
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE Customers (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, PhoneSyriatel TEXT, PhoneMtn TEXT)")
         db.execSQL("CREATE TABLE Transactions (ID INTEGER PRIMARY KEY AUTOINCREMENT, CustomerName TEXT, Amount INTEGER, Type INTEGER, Note TEXT, Date TEXT, ServiceType TEXT, ServiceAmount INTEGER DEFAULT 0)")
@@ -155,26 +174,77 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         db.close(); return result != -1L
     }
     fun updateCustomer(id: Int, oldName: String, newName: String, phoneSyriatel: String, phoneMtn: String): Boolean {
-        val db = this.writableDatabase; db.beginTransaction()
-        try {
+        if (id <= 0 || newName.isBlank()) return false
+        val db = writableDatabase
+        db.beginTransaction()
+        return try {
             if (oldName != newName) {
-                val nameExists = db.rawQuery("SELECT ID FROM Customers WHERE Name=?", arrayOf(newName)).use { it.count > 0 }
+                val nameExists = db.rawQuery(
+                    "SELECT ID FROM Customers WHERE Name=? AND ID<>?",
+                    arrayOf(newName, id.toString())
+                ).use { it.count > 0 }
                 if (nameExists) return false
             }
-            val values = ContentValues().apply { put("Name", newName); put("PhoneSyriatel", phoneSyriatel); put("PhoneMtn", phoneMtn) }
+            val values = ContentValues().apply {
+                put("Name", newName)
+                put("PhoneSyriatel", phoneSyriatel)
+                put("PhoneMtn", phoneMtn)
+            }
             if (db.update("Customers", values, "ID=?", arrayOf(id.toString())) == 0) return false
             if (oldName != newName) {
-                db.update("Transactions", ContentValues().apply { put("CustomerName", newName) }, "CustomerName=?", arrayOf(oldName))
-                db.update("PendingRequests", ContentValues().apply { put("CustomerName", newName) }, "CustomerName=?", arrayOf(oldName))
+                db.update(
+                    "Transactions",
+                    ContentValues().apply { put("CustomerName", newName) },
+                    "CustomerName=?",
+                    arrayOf(oldName)
+                )
+                db.update(
+                    "PendingRequests",
+                    ContentValues().apply { put("CustomerName", newName) },
+                    "CustomerName=?",
+                    arrayOf(oldName)
+                )
             }
             db.setTransactionSuccessful()
-            return true
+            true
         } finally {
             db.endTransaction()
             db.close()
         }
     }
-    fun deleteCustomer(id: Int): Boolean { val db = this.writableDatabase; val r = db.delete("Customers", "ID=?", arrayOf(id.toString())); db.close(); return r > 0 }
+    fun getCustomerRelatedCounts(name: String): Pair<Int, Int> {
+        val db = readableDatabase
+        return try {
+            val transactions = db.rawQuery(
+                "SELECT COUNT(*) FROM Transactions WHERE CustomerName=?",
+                arrayOf(name)
+            ).use { if (it.moveToFirst()) it.getInt(0) else 0 }
+            val pending = db.rawQuery(
+                "SELECT COUNT(*) FROM PendingRequests WHERE CustomerName=?",
+                arrayOf(name)
+            ).use { if (it.moveToFirst()) it.getInt(0) else 0 }
+            Pair(transactions, pending)
+        } finally {
+            db.close()
+        }
+    }
+
+    fun deleteCustomer(id: Int, name: String): Boolean {
+        if (id <= 0 || name.isBlank()) return false
+        val db = writableDatabase
+        db.beginTransaction()
+        return try {
+            db.delete("Transactions", "CustomerName=?", arrayOf(name))
+            db.delete("PendingRequests", "CustomerName=?", arrayOf(name))
+            if (db.delete("Customers", "ID=?", arrayOf(id.toString())) == 0) return false
+            db.setTransactionSuccessful()
+            true
+        } finally {
+            db.endTransaction()
+            db.close()
+        }
+    }
+
     fun getAllCustomers(): ArrayList<Customer> {
         val list = ArrayList<Customer>(); val db = this.readableDatabase; val cursor = db.rawQuery("SELECT * FROM Customers ORDER BY ID DESC", null)
         cursor.use {
@@ -191,18 +261,66 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         val result = db.insert("Transactions", null, values)
         db.close(); return result != -1L
     }
-    fun updateTransaction(id: Int, amount: Int, type: Int, note: String, serviceType: String = ""): Boolean {
-        val db = this.writableDatabase; val values = ContentValues().apply { put("Amount", amount); put("Type", type); put("Note", note); put("ServiceType", serviceType) }
-        val r = db.update("Transactions", values, "ID=?", arrayOf(id.toString())); db.close(); return r > 0
+
+    fun updateTransaction(
+        id: Int,
+        amount: Int,
+        type: Int,
+        note: String,
+        serviceType: String = "",
+        serviceAmount: Int = 0
+    ): Boolean {
+        if (id <= 0 || amount <= 0) return false
+        val normalizedServiceAmount = if (type == 1) serviceAmount else 0
+        if (type == 1 && normalizedServiceAmount <= 0) return false
+        val db = writableDatabase
+        db.beginTransaction()
+        return try {
+            val exists = db.rawQuery(
+                "SELECT ID FROM Transactions WHERE ID=?",
+                arrayOf(id.toString())
+            ).use { it.moveToFirst() }
+            if (!exists) return false
+
+            if (type == 1 && serviceType.isNotBlank()) {
+                val purchased = db.rawQuery(
+                    "SELECT COALESCE(SUM(Amount), 0) FROM CompanyPurchases WHERE CompanyName=?",
+                    arrayOf(serviceType)
+                ).use { if (it.moveToFirst()) it.getLong(0) else 0L }
+                val soldElsewhere = db.rawQuery(
+                    "SELECT COALESCE(SUM(ServiceAmount), 0) FROM Transactions WHERE ServiceType=? AND Type=1 AND ID<>?",
+                    arrayOf(serviceType, id.toString())
+                ).use { if (it.moveToFirst()) it.getLong(0) else 0L }
+                val available = purchased - soldElsewhere
+                if (normalizedServiceAmount.toLong() > available) return false
+            }
+
+            val values = ContentValues().apply {
+                put("Amount", amount)
+                put("Type", type)
+                put("Note", note)
+                put("ServiceType", serviceType)
+                put("ServiceAmount", normalizedServiceAmount)
+            }
+            if (db.update("Transactions", values, "ID=?", arrayOf(id.toString())) == 0) return false
+            db.setTransactionSuccessful()
+            true
+        } finally {
+            db.endTransaction()
+            db.close()
+        }
     }
+
     fun deleteTransaction(id: Int): Boolean { val db = this.writableDatabase; val r = db.delete("Transactions", "ID=?", arrayOf(id.toString())); db.close(); return r > 0 }
     fun getAllTransactions(): ArrayList<Transaction> {
         val list = ArrayList<Transaction>(); val db = this.readableDatabase; val cursor = db.rawQuery("SELECT * FROM Transactions ORDER BY ID DESC", null)
         val stIdx = cursor.getColumnIndex("ServiceType")
+        val saIdx = cursor.getColumnIndex("ServiceAmount")
         cursor.use {
             if (it.moveToFirst()) do {
                 val st = if (stIdx != -1 && !it.isNull(stIdx)) it.getString(stIdx) else ""
-                list.add(Transaction(it.getInt(0), it.getString(1), it.getInt(2), it.getInt(3), it.getString(4), it.getString(5), st))
+                val sa = if (saIdx != -1 && !it.isNull(saIdx)) it.getInt(saIdx) else 0
+                list.add(Transaction(it.getInt(0), it.getString(1), it.getInt(2), it.getInt(3), it.getString(4), it.getString(5), st, sa))
             } while (it.moveToNext())
         }
         db.close(); return list
@@ -440,5 +558,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         val count = cursor.use { if (it.moveToFirst()) it.getInt(0) else 0 }
         db.close()
         return count
+    }
+
+    private companion object {
+        const val TAG = "DatabaseHelper"
     }
 }

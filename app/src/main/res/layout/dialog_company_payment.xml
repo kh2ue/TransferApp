@@ -1,1 +1,38 @@
-﻿<?xml version="1.0" encoding="utf-8"?><LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layoutDirection="rtl" android:padding="24dp" android:background="@color/colorBackground"><TextView android:id="@+id/tv_payment_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="تسديد دفعة للشركة" android:textSize="20sp" android:textStyle="bold" android:textColor="@color/colorTextPrimary" android:layout_marginBottom="20dp"/><EditText android:id="@+id/input_payment_amount" android:layout_width="match_parent" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:inputType="number" android:hint="المبلغ المدفوع للشركة" android:paddingStart="16dp" android:paddingEnd="16dp" android:textColor="@color/colorSuccess" android:textColorHint="@color/colorHint" android:layout_marginBottom="16dp"/><EditText android:id="@+id/input_payment_note" android:layout_width="match_parent" android:layout_height="55dp" android:background="@drawable/bg_input_gray" android:hint="ملاحظة" android:paddingStart="16dp" android:paddingEnd="16dp" android:textColor="@color/colorTextPrimary" android:textColorHint="@color/colorHint" android:layout_marginBottom="24dp"/><androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_save_payment" android:layout_width="match_parent" android:layout_height="55dp" android:text="حفظ التسديد" android:textSize="18sp" android:textStyle="bold" android:background="@drawable/bg_rounded_orange" android:textColor="@color/colorTextOnPrimary" /></LinearLayout>
+﻿<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/transparent"
+    android:layoutDirection="rtl"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/tv_payment_title"
+        style="@style/DialogTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="تسديد دفعة للشركة" />
+
+    <EditText
+        android:id="@+id/input_payment_amount"
+        style="@style/AppField"
+        android:layout_width="match_parent"
+        android:layout_marginBottom="12dp"
+        android:drawableStart="@drawable/ic_wallet"
+        android:hint="المبلغ المدفوع للشركة"
+        android:inputType="number" />
+
+    <EditText
+        android:id="@+id/input_payment_note"
+        style="@style/AppField"
+        android:layout_width="match_parent"
+        android:layout_marginBottom="16dp"
+        android:hint="ملاحظة" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_save_payment"
+        style="@style/AppButton.Primary"
+        android:layout_width="match_parent"
+        android:text="حفظ التسديد" />
+</LinearLayout>

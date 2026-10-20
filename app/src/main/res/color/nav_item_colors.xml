@@ -6,5 +6,5 @@
     <item
         android:state_selected="true"
         android:color="@color/neon_cyan_bright" />
-    <item android:color="#607D8B" />
+    <item android:color="#7BA3C4" />
 </selector>

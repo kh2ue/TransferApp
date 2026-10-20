@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#FF6B00</color>
-    <color name="colorPrimaryDark">#E65100</color>
-    <color name="colorAccent">#4CAF50</color>
+    <color name="colorPrimary">#20D8FF</color>
+    <color name="colorPrimaryDark">#128BFF</color>
+    <color name="colorAccent">#5EF2C5</color>
     <color name="headerBackground">@color/colorPrimary</color>
-    <color name="colorBackground">#F8F9FA</color>
-    <color name="colorSurface">#FFFFFF</color>
-    <color name="colorInput">#F0F2F5</color>
-    <color name="colorTextPrimary">#333333</color>
-    <color name="colorTextSecondary">#888888</color>
-    <color name="colorHint">#888888</color>
-    <color name="colorDivider">#EEEEEE</color>
+    <color name="colorBackground">#020D1D</color>
+    <color name="colorSurface">#0B2744</color>
+    <color name="colorInput">#0B3157</color>
+    <color name="colorTextPrimary">#E8F6FF</color>
+    <color name="colorTextSecondary">#8EC8F4</color>
+    <color name="colorHint">#8EC8F4</color>
+    <color name="colorDivider">#2A5F8A</color>
     <color name="colorTextOnPrimary">#FFFFFF</color>
-    <color name="colorDanger">#D32F2F</color>
-    <color name="colorSuccess">#388E3C</color>
+    <color name="colorDanger">#FF6B8A</color>
+    <color name="colorSuccess">#5EF2C5</color>
 
     <color name="background">#020D1D</color>
     <color name="background_deep">#00101F</color>

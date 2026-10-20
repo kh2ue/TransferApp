@@ -21,4 +21,8 @@
     <string name="nav_accounts">الحسابات</string>
     <string name="nav_companies">الشركات</string>
     <string name="nav_settings">إعدادات</string>
+    <string name="share_backup">مشاركة النسخة الاحتياطية (واتساب)</string>
+    <string name="restore_local_backup">استعادة من النسخة المحفوظة على الجهاز</string>
+    <string name="restore_backup_file">استعادة من ملف نسخة احتياطية</string>
+    <string name="backup_help">تُحفظ قاعدة البيانات والنسخة الاحتياطية على هذا الجهاز فقط. تبقى كل البيانات بعد إغلاق التطبيق، وتُحدَّث النسخة الاحتياطية تلقائياً كل يوم.</string>
 </resources>

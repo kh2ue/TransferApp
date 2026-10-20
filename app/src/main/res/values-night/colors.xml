@@ -12,8 +12,8 @@
     <color name="colorHint">#94A3B8</color>
     <color name="colorDivider">#2A3B5C</color>
     <color name="colorTextOnPrimary">#FFFFFF</color>
-    <color name="colorDanger">#EF5350</color>
-    <color name="colorSuccess">#4CAF50</color>
+    <color name="colorDanger">#FF6B8A</color>
+    <color name="colorSuccess">#5EF2C5</color>
 
     <color name="background">#020D1D</color>
     <color name="background_deep">#00101F</color>

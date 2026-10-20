@@ -14,7 +14,9 @@ class DatabaseBackupJobService : JobService() {
         jobStopped = false
         Thread {
             val needsRetry = try {
-                DatabaseBackup.createBackup(applicationContext)
+                if (DatabaseBackup.hasLiveDatabase(applicationContext)) {
+                    DatabaseBackup.createBackup(applicationContext)
+                }
                 false
             } catch (error: IOException) {
                 Log.e(TAG, "Scheduled database backup failed", error)
