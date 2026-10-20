@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:state_checked="true"
+        android:color="@color/neon_cyan_bright" />
+    <item
+        android:state_selected="true"
+        android:color="@color/neon_cyan_bright" />
+    <item android:color="#607D8B" />
+</selector>

@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.PorterDuff
 import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import android.os.Bundle
@@ -197,18 +196,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         fun updateNavUI(selected: String) {
-            val primaryColor = ContextCompat.getColor(this@MainActivity, R.color.cyan)
-            val grayColor = ContextCompat.getColor(this@MainActivity, R.color.text_secondary)
-            (navTransfer.getChildAt(0) as ImageView).setColorFilter(if (selected == "transfer") primaryColor else grayColor, PorterDuff.Mode.SRC_IN)
-            (navTransfer.getChildAt(1) as TextView).setTextColor(if (selected == "transfer") primaryColor else grayColor)
-            (navCustomers.getChildAt(0) as ImageView).setColorFilter(if (selected == "customers") primaryColor else grayColor, PorterDuff.Mode.SRC_IN)
-            (navCustomers.getChildAt(1) as TextView).setTextColor(if (selected == "customers") primaryColor else grayColor)
-            (navDebt.getChildAt(0) as ImageView).setColorFilter(if (selected == "debt") primaryColor else grayColor, PorterDuff.Mode.SRC_IN)
-            (navDebt.getChildAt(1) as TextView).setTextColor(if (selected == "debt") primaryColor else grayColor)
-            (navCompanies.getChildAt(0) as ImageView).setColorFilter(if (selected == "companies") primaryColor else grayColor, PorterDuff.Mode.SRC_IN)
-            (navCompanies.getChildAt(1) as TextView).setTextColor(if (selected == "companies") primaryColor else grayColor)
-            (navSettings.getChildAt(0) as ImageView).setColorFilter(if (selected == "settings") primaryColor else grayColor, PorterDuff.Mode.SRC_IN)
-            (navSettings.getChildAt(1) as TextView).setTextColor(if (selected == "settings") primaryColor else grayColor)
+            navTransfer.isSelected = selected == "transfer"
+            navCustomers.isSelected = selected == "customers"
+            navDebt.isSelected = selected == "debt"
+            navCompanies.isSelected = selected == "companies"
+            navSettings.isSelected = selected == "settings"
+            listOf(navTransfer, navCustomers, navDebt, navCompanies, navSettings)
+                .forEach { it.refreshDrawableState() }
         }
 
         navTransfer.setOnClickListener { layoutTransfer.visibility = View.VISIBLE; layoutCustomers.visibility = View.GONE; layoutDebt.visibility = View.GONE; layoutCompanies.visibility = View.GONE; layoutSettings.visibility = View.GONE; tvMainTitle.text = "تحويل"; updateNavUI("transfer") }
