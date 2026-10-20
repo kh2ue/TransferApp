@@ -133,12 +133,16 @@ class MainActivity : AppCompatActivity() {
             executingPendingId = state.getInt("executing_pending_id", -1)
         }
         setContentView(R.layout.activity_main)
-        val transferBlurView = findViewById<BlurView>(R.id.transfer_blur_view)
-        val decorView = window.decorView
-        transferBlurView.setOutlineProvider(ViewOutlineProvider.BACKGROUND)
-        transferBlurView.clipToOutline = true
-        transferBlurView.setupWith(decorView as ViewGroup, RenderScriptBlur(this))
-            .setBlurRadius(18f)
+        val blurRoot = window.decorView as ViewGroup
+        listOf(
+            findViewById<BlurView>(R.id.header_blur_view),
+            findViewById<BlurView>(R.id.transfer_blur_view)
+        ).forEach { blurView ->
+            blurView.setOutlineProvider(ViewOutlineProvider.BACKGROUND)
+            blurView.clipToOutline = true
+            blurView.setupWith(blurRoot, RenderScriptBlur(this))
+                .setBlurRadius(18f)
+        }
         dbHelper = DatabaseHelper(this)
         migrateLegacyCategories(initialPrefs)
         DatabaseBackup.scheduleDaily(this)
@@ -224,7 +228,7 @@ class MainActivity : AppCompatActivity() {
         val spinnerTransService = findViewById<Spinner>(R.id.spinner_trans_service)
         val spinnerFilterService = findViewById<Spinner>(R.id.spinner_filter_service)
 
-        spinnerServiceType.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, servicesArray)
+        spinnerServiceType.adapter = createNeonSpinnerAdapter(servicesArray.toList())
         spinnerTransService.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, transServicesArray)
         spinnerFilterService.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, filterServicesArray)
 
@@ -584,7 +588,30 @@ class MainActivity : AppCompatActivity() {
             )
         }
         findViewById<Spinner>(R.id.spinner_quick_amounts).adapter =
-            ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, displayList)
+            createNeonSpinnerAdapter(displayList)
+    }
+
+    private fun createNeonSpinnerAdapter(items: List<String>): ArrayAdapter<String> {
+        val density = resources.displayMetrics.density
+        val horizontalPadding = (20 * density).toInt()
+        val verticalPadding = (16 * density).toInt()
+        return object : ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, items) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
+                (super.getView(position, convertView, parent) as TextView).apply {
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.neon_label))
+                    textSize = 16f
+                    gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.RIGHT
+                }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View =
+                (super.getDropDownView(position, convertView, parent) as TextView).apply {
+                    setTextColor(ContextCompat.getColor(this@MainActivity, R.color.neon_label))
+                    setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.neon_background))
+                    textSize = 16f
+                    gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.RIGHT
+                    setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
+                }
+        }
     }
 
     private fun rememberQuickCategory(serviceName: String, amount: Long, price: Long) {

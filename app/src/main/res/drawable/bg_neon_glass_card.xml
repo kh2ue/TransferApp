@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:left="2dp" android:top="5dp" android:right="2dp" android:bottom="0dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/neon_card_shadow" />
+            <corners android:radius="24dp" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="0"
+                android:startColor="@color/neon_blue"
+                android:endColor="@color/neon_cyan" />
+            <corners android:radius="24dp" />
+        </shape>
+    </item>
+    <item android:left="1.5dp" android:top="1.5dp" android:right="1.5dp" android:bottom="1.5dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/neon_glass_fill" />
+            <corners android:radius="22dp" />
+        </shape>
+    </item>
+</layer-list>
