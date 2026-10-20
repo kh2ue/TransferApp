@@ -38,4 +38,6 @@
     <color name="neon_glass_fill">#15002244</color>
     <color name="neon_blue">#0055FF</color>
     <color name="neon_field_fill">#1A0055FF</color>
+    <color name="neon_dark_bg">#020D1D</color>
+    <color name="neon_cyan_bright">#20D8FF</color>
 </resources>
