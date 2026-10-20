@@ -17,8 +17,11 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.view.inputmethod.InputMethodManager
 import android.widget.*
+import eightbitlab.com.blurview.BlurView
+import eightbitlab.com.blurview.RenderScriptBlur
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -130,6 +133,12 @@ class MainActivity : AppCompatActivity() {
             executingPendingId = state.getInt("executing_pending_id", -1)
         }
         setContentView(R.layout.activity_main)
+        val transferBlurView = findViewById<BlurView>(R.id.transfer_blur_view)
+        val decorView = window.decorView
+        transferBlurView.setOutlineProvider(ViewOutlineProvider.BACKGROUND)
+        transferBlurView.clipToOutline = true
+        transferBlurView.setupWith(decorView as ViewGroup, RenderScriptBlur(this))
+            .setBlurRadius(18f)
         dbHelper = DatabaseHelper(this)
         migrateLegacyCategories(initialPrefs)
         DatabaseBackup.scheduleDaily(this)
