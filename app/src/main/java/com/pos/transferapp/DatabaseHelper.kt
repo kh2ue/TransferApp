@@ -5,17 +5,55 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
 
-data class Customer(val id: Int, val name: String, val phoneSyriatel: String, val phoneMtn: String)
-data class Transaction(val id: Int, val customerName: String, val amount: Int, val type: Int, val note: String, val date: String, val serviceType: String, val serviceAmount: Int = 0)
-data class PendingRequest(val id: Int, val customerName: String, val network: String, val amount: Int, val price: Int, val date: String, val serviceType: String, val serviceAmount: Int)
+data class Customer(
+    val id: Int,
+    val name: String,
+    val phoneSyriatel: String,
+    val phoneMtn: String,
+    val initialDebt: Double = 0.0
+)
+data class Transaction(
+    val id: Int,
+    val customerName: String,
+    val amount: Int,
+    val type: Int,
+    val note: String,
+    val date: String,
+    val serviceType: String,
+    val serviceAmount: Int = 0,
+    val discountAddition: Double = 0.0,
+    val profit: Double = 0.0,
+    val paymentMethod: Int = 0
+)
+data class PendingRequest(
+    val id: Int,
+    val customerName: String,
+    val network: String,
+    val amount: Int,
+    val price: Int,
+    val date: String,
+    val serviceType: String,
+    val serviceAmount: Int,
+    val dueDate: String = ""
+)
 data class CompanyPurchase(val id: Int, val companyName: String, val amount: Int, val cost: Int, val date: String, val note: String)
 data class CompanyPayment(val id: Int, val companyName: String, val paidAmount: Int, val date: String, val note: String)
+data class Official(val id: Int, val name: String)
+data class Company(
+    val id: Int,
+    val name: String,
+    val officialId: Int,
+    val initialBalance: Double,
+    val buyPrice: Double,
+    val sellPrice: Double
+)
+data class CashTransaction(val id: Int, val type: Int, val amount: Double, val note: String, val date: String)
 data class CompanyLogEntry(val id: Int, val companyName: String, val type: String, val amount: Long, val quantity: Long, val date: String, val note: String)
 data class CompanyReportEntry(val id: Int, val type: String, val amount: Long, val quantity: Long, val date: String, val note: String)
 data class SalesReport(val totalCredit: Long, val totalFinancial: Long, val count: Int)
 data class ServiceCategory(val id: Int, val serviceName: String, val amount: Long, val price: Long)
 
-class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.db", null, 12) {
+class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.db", null, 13) {
     override fun onConfigure(db: SQLiteDatabase) {
         db.rawQuery("PRAGMA busy_timeout=5000", null).use { }
         db.rawQuery("PRAGMA journal_mode=DELETE", null).use { cursor ->
@@ -40,7 +78,9 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         db.execSQL("CREATE TABLE PendingRequests (ID INTEGER PRIMARY KEY AUTOINCREMENT, CustomerName TEXT, Network TEXT, Amount INTEGER, Price INTEGER, Date TEXT, ServiceType TEXT, ServiceAmount INTEGER DEFAULT 0)")
         db.execSQL("CREATE TABLE CompanyPurchases (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, Amount INTEGER, Cost INTEGER, Date TEXT, Note TEXT)")
         db.execSQL("CREATE TABLE CompanyPayments (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, PaidAmount INTEGER, Date TEXT, Note TEXT)")
-        db.execSQL("CREATE TABLE ServiceCategories (id INTEGER PRIMARY KEY AUTOINCREMENT, service_name TEXT NOT NULL, amount INTEGER NOT NULL, price INTEGER NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS Officials (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS Companies (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, OfficialID INTEGER, InitialBalance REAL DEFAULT 0.0, BuyPrice REAL DEFAULT 0.0, SellPrice REAL DEFAULT 0.0)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS CashBox (ID INTEGER PRIMARY KEY AUTOINCREMENT, Type INTEGER, Amount REAL, Note TEXT, Date TEXT)")
     }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 8) {
@@ -62,6 +102,24 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         }
         if (oldVersion < 12) {
             db.execSQL("CREATE TABLE IF NOT EXISTS ServiceCategories (id INTEGER PRIMARY KEY AUTOINCREMENT, service_name TEXT NOT NULL, amount INTEGER NOT NULL, price INTEGER NOT NULL)")
+        }
+        if (oldVersion < 13) {
+            db.execSQL("DROP TABLE IF EXISTS ServiceCategories")
+
+            db.execSQL("CREATE TABLE IF NOT EXISTS Officials (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS Companies (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, OfficialID INTEGER, InitialBalance REAL DEFAULT 0.0, BuyPrice REAL DEFAULT 0.0, SellPrice REAL DEFAULT 0.0)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS CashBox (ID INTEGER PRIMARY KEY AUTOINCREMENT, Type INTEGER, Amount REAL, Note TEXT, Date TEXT)")
+
+            db.execSQL("ALTER TABLE Customers ADD COLUMN initial_debt REAL DEFAULT 0.0")
+
+            db.execSQL("ALTER TABLE Transactions ADD COLUMN discount_addition REAL DEFAULT 0.0")
+            db.execSQL("ALTER TABLE Transactions ADD COLUMN profit REAL DEFAULT 0.0")
+            db.execSQL("ALTER TABLE Transactions ADD COLUMN payment_method INTEGER DEFAULT 0")
+
+            db.execSQL("ALTER TABLE PendingRequests ADD COLUMN due_date TEXT DEFAULT ''")
+
+            // إضافة شركة شام كاش بشكل افتراضي
+            db.execSQL("INSERT INTO Companies (Name, InitialBalance, BuyPrice, SellPrice) VALUES ('شام كاش', 0.0, 1.0, 1.0)")
         }
     }
 
@@ -162,6 +220,98 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
             db.close()
         }
         return categories
+    }
+
+    fun addOfficial(name: String): Long {
+        if (name.isBlank()) return -1L
+        val db = writableDatabase
+        val values = ContentValues().apply { put("Name", name) }
+        val result = db.insert("Officials", null, values)
+        db.close()
+        return result
+    }
+
+    fun getAllOfficials(): List<Official> {
+        val list = ArrayList<Official>()
+        val db = readableDatabase
+        db.rawQuery("SELECT ID, Name FROM Officials ORDER BY ID ASC", null).use { cursor ->
+            if (cursor.moveToFirst()) {
+                do {
+                    list.add(
+                        Official(
+                            id = cursor.getInt(cursor.getColumnIndexOrThrow("ID")),
+                            name = cursor.getString(cursor.getColumnIndexOrThrow("Name"))
+                        )
+                    )
+                } while (cursor.moveToNext())
+            }
+        }
+        db.close()
+        return list
+    }
+
+    fun addCompany(company: Company): Long {
+        if (company.name.isBlank()) return -1L
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put("Name", company.name)
+            put("OfficialID", company.officialId)
+            put("InitialBalance", company.initialBalance)
+            put("BuyPrice", company.buyPrice)
+            put("SellPrice", company.sellPrice)
+        }
+        val result = db.insert("Companies", null, values)
+        db.close()
+        return result
+    }
+
+    fun updateCompany(company: Company): Int {
+        if (company.id <= 0 || company.name.isBlank()) return 0
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put("Name", company.name)
+            put("OfficialID", company.officialId)
+            put("InitialBalance", company.initialBalance)
+            put("BuyPrice", company.buyPrice)
+            put("SellPrice", company.sellPrice)
+        }
+        val result = db.update("Companies", values, "ID=?", arrayOf(company.id.toString()))
+        db.close()
+        return result
+    }
+
+    fun getAllCompanies(): List<Company> {
+        val list = ArrayList<Company>()
+        val db = readableDatabase
+        db.rawQuery(
+            "SELECT ID, Name, OfficialID, InitialBalance, BuyPrice, SellPrice FROM Companies ORDER BY ID ASC",
+            null
+        ).use { cursor ->
+            if (cursor.moveToFirst()) {
+                do {
+                    list.add(
+                        Company(
+                            id = cursor.getInt(cursor.getColumnIndexOrThrow("ID")),
+                            name = cursor.getString(cursor.getColumnIndexOrThrow("Name")),
+                            officialId = cursor.getInt(cursor.getColumnIndexOrThrow("OfficialID")),
+                            initialBalance = cursor.getDouble(cursor.getColumnIndexOrThrow("InitialBalance")),
+                            buyPrice = cursor.getDouble(cursor.getColumnIndexOrThrow("BuyPrice")),
+                            sellPrice = cursor.getDouble(cursor.getColumnIndexOrThrow("SellPrice"))
+                        )
+                    )
+                } while (cursor.moveToNext())
+            }
+        }
+        db.close()
+        return list
+    }
+
+    fun deleteCompany(id: Int): Int {
+        if (id <= 0) return 0
+        val db = writableDatabase
+        val result = db.delete("Companies", "ID=?", arrayOf(id.toString()))
+        db.close()
+        return result
     }
 
     // --- Customers ---
@@ -563,4 +713,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
     private companion object {
         const val TAG = "DatabaseHelper"
     }
+
+    
+    
 }

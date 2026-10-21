@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_panel"
+    android:layoutDirection="rtl"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:text="بيانات الشركة"
+        android:textColor="@color/neon_cyan_bright"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/input_company_name"
+        style="@style/AppField"
+        android:layout_width="match_parent"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_field"
+        android:hint="اسم الشركة"
+        android:inputType="textPersonName" />
+
+    <Spinner
+        android:id="@+id/spinner_official"
+        android:layout_width="match_parent"
+        android:layout_height="58dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_field"
+        android:popupBackground="@color/background"
+        android:textDirection="rtl" />
+
+    <EditText
+        android:id="@+id/input_initial_balance"
+        style="@style/AppField"
+        android:layout_width="match_parent"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_field"
+        android:hint="الرصيد الابتدائي"
+        android:inputType="numberDecimal" />
+
+    <EditText
+        android:id="@+id/input_buy_price"
+        style="@style/AppField"
+        android:layout_width="match_parent"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_field"
+        android:hint="سعر شراء الوحدة"
+        android:inputType="numberDecimal" />
+
+    <EditText
+        android:id="@+id/input_sell_price"
+        style="@style/AppField"
+        android:layout_width="match_parent"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_field"
+        android:hint="سعر بيع الوحدة"
+        android:inputType="numberDecimal" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_cancel_company"
+            style="@style/AppButton.Outline"
+            android:layout_width="0dp"
+            android:layout_height="58dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:background="@drawable/bg_button_outline"
+            android:text="إلغاء" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_save_company"
+            style="@style/AppButton.Primary"
+            android:layout_width="0dp"
+            android:layout_height="58dp"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_button_primary"
+            android:text="حفظ" />
+    </LinearLayout>
+</LinearLayout>
