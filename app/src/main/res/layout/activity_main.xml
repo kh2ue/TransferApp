@@ -86,7 +86,6 @@
                             <RadioButton android:id="@+id/radio_cash" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="نقدي" android:checked="true" android:textColor="@color/text_primary" android:buttonTint="@color/neon_cyan_bright" />
                             <RadioButton android:id="@+id/radio_sham_cash" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="شام كاش" android:textColor="@color/text_primary" android:buttonTint="@color/neon_cyan_bright" />
                         </RadioGroup>
-                        <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_select_due_date" style="@style/AppButton.Outline" android:layout_width="match_parent" android:background="@drawable/bg_button_outline" android:text="تحديد تاريخ التنفيذ (اختياري)" android:layout_marginBottom="12dp" />
                         <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_save_trans" style="@style/AppButton.Primary" android:layout_width="match_parent" android:text="حفظ الدفعة" />
                     </LinearLayout>
                 <LinearLayout android:layout_width="match_parent" android:layout_height="58dp" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="12dp">
