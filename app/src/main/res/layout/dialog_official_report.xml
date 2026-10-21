@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/transparent"
+    android:layoutDirection="rtl"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/tv_report_title"
+        style="@style/DialogTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="خيارات طباعة كشف المسؤول" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_rep_from"
+        style="@style/AppButton.Outline"
+        android:layout_width="match_parent"
+        android:layout_marginBottom="12dp"
+        android:gravity="center"
+        android:text="من تاريخ: غير محدد" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_rep_to"
+        style="@style/AppButton.Outline"
+        android:layout_width="match_parent"
+        android:layout_marginBottom="12dp"
+        android:gravity="center"
+        android:text="إلى تاريخ: غير محدد" />
+
+    <CheckBox
+        android:id="@+id/cb_official_shipping_balances"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:buttonTint="@color/neon_cyan_bright"
+        android:checked="true"
+        android:text="تضمين أرصدة الشحن"
+        android:textColor="@color/text_primary" />
+
+    <CheckBox
+        android:id="@+id/cb_official_financial_payments"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:buttonTint="@color/neon_cyan_bright"
+        android:checked="true"
+        android:text="تضمين الدفعات المالية"
+        android:textColor="@color/text_primary" />
+
+    <CheckBox
+        android:id="@+id/cb_official_company_summary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:buttonTint="@color/neon_cyan_bright"
+        android:checked="true"
+        android:layout_marginBottom="12dp"
+        android:text="تضمين ملخص الشركات"
+        android:textColor="@color/text_primary" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_rep_calc"
+        style="@style/AppButton.Primary"
+        android:layout_width="match_parent"
+        android:layout_marginBottom="16dp"
+        android:text="حساب التقرير" />
+
+    <LinearLayout
+        android:id="@+id/layout_rep_results"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tv_rep_credit"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:textColor="@color/colorSuccess"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_rep_financial"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:textColor="@color/colorDanger"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_rep_count"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_rep_export_pdf"
+            style="@style/AppButton.Outline"
+            android:layout_width="match_parent"
+            android:layout_marginBottom="12dp"
+            android:text="تصدير السجل التفصيلي" />
+    </LinearLayout>
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_rep_close"
+        style="@style/AppButton.Outline"
+        android:layout_width="match_parent"
+        android:text="إغلاق" />
+</LinearLayout>

@@ -12,7 +12,7 @@
     <string name="price">السعر</string>
     <string name="pending_orders_initial">الطلبات المعلقة (0)</string>
     <string name="pending_orders">الطلبات المعلقة (%1$d)</string>
-    <string name="save_pending">حفظ في المعلقات</string>
+    <string name="save_pending">تعليق الطلب</string>
     <string name="execute_transfer">تحويل / تنفيذ</string>
     <string name="saved_to_pending">تم الحفظ في المعلقات</string>
     <string name="transfer_started">تم بدء عملية التحويل</string>

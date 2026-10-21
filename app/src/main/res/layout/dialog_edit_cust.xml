@@ -33,9 +33,18 @@
         android:id="@+id/edit_cust_mtn"
         style="@style/AppField"
         android:layout_width="match_parent"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="12dp"
         android:hint="رقم MTN"
         android:inputType="phone" />
+
+    <EditText
+        android:id="@+id/input_initial_debt"
+        style="@style/AppField"
+        android:layout_width="match_parent"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/bg_field"
+        android:hint="الدين الابتدائي (الرصيد المطلوب منه مسبقاً)"
+        android:inputType="numberDecimal" />
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btn_update_cust"

@@ -14,10 +14,46 @@
         android:gravity="center"
         android:text="الطلبات المعلقة" />
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layoutDirection="rtl"
+        android:orientation="horizontal"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_filter_from_date"
+            style="@style/AppButton.Outline.Compact"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:text="من تاريخ" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_filter_to_date"
+            style="@style/AppButton.Outline.Compact"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="4dp"
+            android:text="إلى تاريخ" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn_apply_filter"
+            style="@style/AppButton.Primary.Compact"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="تطبيق الفلتر"
+            android:textColor="@color/neon_cyan_bright" />
+    </LinearLayout>
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_pending"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:clipToPadding="false"
         android:paddingBottom="8dp" />
 </LinearLayout>

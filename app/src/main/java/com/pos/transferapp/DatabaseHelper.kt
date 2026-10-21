@@ -50,6 +50,15 @@ data class Company(
 data class CashTransaction(val id: Int, val type: Int, val amount: Double, val note: String, val date: String)
 data class CompanyLogEntry(val id: Int, val companyName: String, val type: String, val amount: Long, val quantity: Long, val date: String, val note: String)
 data class CompanyReportEntry(val id: Int, val type: String, val amount: Long, val quantity: Long, val date: String, val note: String)
+data class OfficialReportEntry(
+    val id: Int,
+    val companyName: String,
+    val type: String,
+    val amount: Long,
+    val quantity: Long,
+    val date: String,
+    val note: String
+)
 data class SalesReport(val totalCredit: Long, val totalFinancial: Long, val count: Int)
 data class ServiceCategory(val id: Int, val serviceName: String, val amount: Long, val price: Long)
 
@@ -73,14 +82,15 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
     }
 
     override fun onCreate(db: SQLiteDatabase) {
-        db.execSQL("CREATE TABLE Customers (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, PhoneSyriatel TEXT, PhoneMtn TEXT)")
-        db.execSQL("CREATE TABLE Transactions (ID INTEGER PRIMARY KEY AUTOINCREMENT, CustomerName TEXT, Amount INTEGER, Type INTEGER, Note TEXT, Date TEXT, ServiceType TEXT, ServiceAmount INTEGER DEFAULT 0)")
-        db.execSQL("CREATE TABLE PendingRequests (ID INTEGER PRIMARY KEY AUTOINCREMENT, CustomerName TEXT, Network TEXT, Amount INTEGER, Price INTEGER, Date TEXT, ServiceType TEXT, ServiceAmount INTEGER DEFAULT 0)")
+        db.execSQL("CREATE TABLE Customers (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, PhoneSyriatel TEXT, PhoneMtn TEXT, initial_debt REAL DEFAULT 0.0)")
+        db.execSQL("CREATE TABLE Transactions (ID INTEGER PRIMARY KEY AUTOINCREMENT, CustomerName TEXT, Amount INTEGER, Type INTEGER, Note TEXT, Date TEXT, ServiceType TEXT, ServiceAmount INTEGER DEFAULT 0, discount_addition REAL DEFAULT 0.0, profit REAL DEFAULT 0.0, payment_method INTEGER DEFAULT 0)")
+        db.execSQL("CREATE TABLE PendingRequests (ID INTEGER PRIMARY KEY AUTOINCREMENT, CustomerName TEXT, Network TEXT, Amount INTEGER, Price INTEGER, Date TEXT, ServiceType TEXT, ServiceAmount INTEGER DEFAULT 0, due_date TEXT DEFAULT '')")
         db.execSQL("CREATE TABLE CompanyPurchases (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, Amount INTEGER, Cost INTEGER, Date TEXT, Note TEXT)")
         db.execSQL("CREATE TABLE CompanyPayments (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, PaidAmount INTEGER, Date TEXT, Note TEXT)")
         db.execSQL("CREATE TABLE IF NOT EXISTS Officials (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT)")
         db.execSQL("CREATE TABLE IF NOT EXISTS Companies (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, OfficialID INTEGER, InitialBalance REAL DEFAULT 0.0, BuyPrice REAL DEFAULT 0.0, SellPrice REAL DEFAULT 0.0)")
         db.execSQL("CREATE TABLE IF NOT EXISTS CashBox (ID INTEGER PRIMARY KEY AUTOINCREMENT, Type INTEGER, Amount REAL, Note TEXT, Date TEXT)")
+        db.execSQL("INSERT INTO Companies (Name, InitialBalance, BuyPrice, SellPrice) VALUES ('شام كاش', 0.0, 1.0, 1.0)")
     }
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 8) {
@@ -121,105 +131,6 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
             // إضافة شركة شام كاش بشكل افتراضي
             db.execSQL("INSERT INTO Companies (Name, InitialBalance, BuyPrice, SellPrice) VALUES ('شام كاش', 0.0, 1.0, 1.0)")
         }
-    }
-
-    fun addCategory(serviceName: String, amount: Long, price: Long): Boolean {
-        if (serviceName.isBlank() || amount <= 0L || price <= 0L) return false
-        val db = writableDatabase
-        return try {
-            db.beginTransaction()
-            val existingId = db.rawQuery(
-                "SELECT id FROM ServiceCategories WHERE service_name=? AND amount=? ORDER BY id ASC LIMIT 1",
-                arrayOf(serviceName, amount.toString())
-            ).use { cursor ->
-                if (cursor.moveToFirst()) cursor.getInt(0) else null
-            }
-            val saved = if (existingId != null) {
-                val values = ContentValues().apply { put("price", price) }
-                db.update("ServiceCategories", values, "id=?", arrayOf(existingId.toString())) > 0
-            } else {
-                val values = ContentValues().apply {
-                    put("service_name", serviceName)
-                    put("amount", amount)
-                    put("price", price)
-                }
-                db.insert("ServiceCategories", null, values) != -1L
-            }
-            if (saved) db.setTransactionSuccessful()
-            saved
-        } finally {
-            if (db.inTransaction()) db.endTransaction()
-            db.close()
-        }
-    }
-
-    fun updateCategory(id: Int, serviceName: String, amount: Long, price: Long): Boolean {
-        if (id <= 0 || serviceName.isBlank() || amount <= 0L || price <= 0L) return false
-        val db = writableDatabase
-        return try {
-            db.beginTransaction()
-            val duplicateId = db.rawQuery(
-                "SELECT id FROM ServiceCategories WHERE service_name=? AND amount=? AND id<>? ORDER BY id ASC LIMIT 1",
-                arrayOf(serviceName, amount.toString(), id.toString())
-            ).use { cursor ->
-                if (cursor.moveToFirst()) cursor.getInt(0) else null
-            }
-            if (duplicateId != null) {
-                val duplicateValues = ContentValues().apply { put("price", price) }
-                val updated = db.update("ServiceCategories", duplicateValues, "id=?", arrayOf(duplicateId.toString())) > 0
-                val deleted = db.delete("ServiceCategories", "id=?", arrayOf(id.toString())) > 0
-                if (updated && deleted) db.setTransactionSuccessful()
-                return updated && deleted
-            }
-            val values = ContentValues().apply {
-                put("service_name", serviceName)
-                put("amount", amount)
-                put("price", price)
-            }
-            val updated = db.update("ServiceCategories", values, "id=?", arrayOf(id.toString())) > 0
-            if (updated) db.setTransactionSuccessful()
-            updated
-        } finally {
-            if (db.inTransaction()) db.endTransaction()
-            db.close()
-        }
-    }
-
-    fun deleteCategory(id: Int): Boolean {
-        if (id <= 0) return false
-        val db = writableDatabase
-        return try {
-            db.delete("ServiceCategories", "id=?", arrayOf(id.toString())) > 0
-        } finally {
-            db.close()
-        }
-    }
-
-    fun getCategoriesByService(serviceName: String): List<ServiceCategory> {
-        val categories = ArrayList<ServiceCategory>()
-        val db = readableDatabase
-        try {
-            db.rawQuery(
-                "SELECT id, service_name, amount, price FROM ServiceCategories WHERE service_name=? ORDER BY amount ASC",
-                arrayOf(serviceName)
-            ).use { cursor ->
-                if (cursor.moveToFirst()) {
-                    do {
-                        categories.add(
-                            ServiceCategory(
-                                cursor.getInt(0),
-                                cursor.getString(1),
-                                cursor.getLong(2),
-                                cursor.getLong(3)
-                            )
-                        )
-                    } while (cursor.moveToNext())
-                }
-            }
-        } finally {
-            db.close()
-        }
-        return categories
     }
 
     fun addOfficial(name: String): Long {
@@ -314,17 +225,120 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         return result
     }
 
+    fun addCashTransaction(type: Int, amount: Double, note: String, date: String): Boolean {
+        if (!amount.isFinite() || amount <= 0.0 || date.isBlank()) return false
+        val db = writableDatabase
+        val values = ContentValues().apply {
+            put("Type", type)
+            put("Amount", amount)
+            put("Note", note)
+            put("Date", date)
+        }
+        val result = db.insert("CashBox", null, values)
+        db.close()
+        return result != -1L
+    }
+
+    fun getAllCashTransactions(): List<CashTransaction> {
+        val transactions = ArrayList<CashTransaction>()
+        val db = readableDatabase
+        db.rawQuery(
+            "SELECT ID, Type, Amount, Note, Date FROM CashBox ORDER BY Date DESC, ID DESC",
+            null
+        ).use { cursor ->
+            if (cursor.moveToFirst()) {
+                do {
+                    transactions.add(
+                        CashTransaction(
+                            id = cursor.getInt(0),
+                            type = cursor.getInt(1),
+                            amount = cursor.getDouble(2),
+                            note = cursor.getString(3).orEmpty(),
+                            date = cursor.getString(4).orEmpty()
+                        )
+                    )
+                } while (cursor.moveToNext())
+            }
+        }
+        db.close()
+        return transactions
+    }
+
+    fun getTotalCashAndProfit(): Double {
+        val db = readableDatabase
+        val total = db.rawQuery(
+            "SELECT " +
+                "COALESCE((SELECT SUM(Amount) FROM Transactions WHERE Type=2 AND payment_method=1), 0) + " +
+                "COALESCE((SELECT SUM(profit) FROM Transactions WHERE Type=1), 0) + " +
+                "COALESCE((SELECT SUM(CASE WHEN Type=0 THEN -Amount ELSE Amount END) FROM CashBox), 0)",
+            null
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getDouble(0) else 0.0
+        }
+        db.close()
+        return total
+    }
+
+    fun getTotalCashPayments(): Double {
+        val db = readableDatabase
+        val total = db.rawQuery(
+            "SELECT COALESCE(SUM(Amount), 0) FROM Transactions WHERE Type=2 AND payment_method=1",
+            null
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getDouble(0) else 0.0
+        }
+        db.close()
+        return total
+    }
+
+    fun getTotalCashExpenses(): Double {
+        val db = readableDatabase
+        val total = db.rawQuery(
+            "SELECT COALESCE(SUM(Amount), 0) FROM CashBox WHERE Type=0",
+            null
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getDouble(0) else 0.0
+        }
+        db.close()
+        return total
+    }
+
     // --- Customers ---
+    fun addCustomer(customer: Customer): Boolean =
+        addCustomer(
+            customer.name,
+            customer.phoneSyriatel,
+            customer.phoneMtn,
+            customer.initialDebt
+        )
+
     fun addCustomer(name: String, phoneSyriatel: String, phoneMtn: String): Boolean {
+        return addCustomer(name, phoneSyriatel, phoneMtn, 0.0)
+    }
+
+    fun addCustomer(name: String, phoneSyriatel: String, phoneMtn: String, initialDebt: Double): Boolean {
+        if (name.isBlank() || !initialDebt.isFinite() || initialDebt < 0.0) return false
         val db = this.writableDatabase
         val exists = db.rawQuery("SELECT ID FROM Customers WHERE Name=?", arrayOf(name)).use { it.count > 0 }
         if (exists) { db.close(); return false }
-        val values = ContentValues().apply { put("Name", name); put("PhoneSyriatel", phoneSyriatel); put("PhoneMtn", phoneMtn) }
+        val values = ContentValues().apply {
+            put("Name", name)
+            put("PhoneSyriatel", phoneSyriatel)
+            put("PhoneMtn", phoneMtn)
+            put("initial_debt", initialDebt)
+        }
         val result = db.insert("Customers", null, values)
         db.close(); return result != -1L
     }
-    fun updateCustomer(id: Int, oldName: String, newName: String, phoneSyriatel: String, phoneMtn: String): Boolean {
-        if (id <= 0 || newName.isBlank()) return false
+    fun updateCustomer(
+        id: Int,
+        oldName: String,
+        newName: String,
+        phoneSyriatel: String,
+        phoneMtn: String,
+        initialDebt: Double = 0.0
+    ): Boolean {
+        if (id <= 0 || newName.isBlank() || !initialDebt.isFinite() || initialDebt < 0.0) return false
         val db = writableDatabase
         db.beginTransaction()
         return try {
@@ -339,6 +353,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
                 put("Name", newName)
                 put("PhoneSyriatel", phoneSyriatel)
                 put("PhoneMtn", phoneMtn)
+                put("initial_debt", initialDebt)
             }
             if (db.update("Customers", values, "ID=?", arrayOf(id.toString())) == 0) return false
             if (oldName != newName) {
@@ -398,18 +413,90 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
     fun getAllCustomers(): ArrayList<Customer> {
         val list = ArrayList<Customer>(); val db = this.readableDatabase; val cursor = db.rawQuery("SELECT * FROM Customers ORDER BY ID DESC", null)
         cursor.use {
-            if (it.moveToFirst()) do { list.add(Customer(it.getInt(0), it.getString(1), it.getString(2), it.getString(3))) } while (it.moveToNext())
+            val initialDebtIndex = it.getColumnIndex("initial_debt")
+            if (it.moveToFirst()) do {
+                list.add(
+                    Customer(
+                        it.getInt(0),
+                        it.getString(1),
+                        it.getString(2),
+                        it.getString(3),
+                        if (initialDebtIndex >= 0) it.getDouble(initialDebtIndex) else 0.0
+                    )
+                )
+            } while (it.moveToNext())
         }
         db.close(); return list
     }
 
     // --- Transactions ---
-    fun addTransaction(customerName: String, amount: Int, type: Int, note: String, date: String, serviceType: String = "", serviceAmount: Int = 0): Boolean {
+    fun addTransaction(
+        customerName: String,
+        amount: Int,
+        type: Int,
+        note: String,
+        date: String,
+        serviceType: String = "",
+        serviceAmount: Int = 0,
+        paymentMethod: Int = 0,
+        discountAddition: Double = 0.0,
+        profit: Double = 0.0
+    ): Boolean {
         if (amount <= 0 || serviceAmount < 0 || (type == 1 && serviceAmount == 0)) return false
         val db = this.writableDatabase
-        val values = ContentValues().apply { put("CustomerName", customerName); put("Amount", amount); put("Type", type); put("Note", note); put("Date", date); put("ServiceType", serviceType); put("ServiceAmount", serviceAmount) }
+        val values = ContentValues().apply {
+            put("CustomerName", customerName)
+            put("Amount", amount)
+            put("Type", type)
+            put("Note", note)
+            put("Date", date)
+            put("ServiceType", serviceType)
+            put("ServiceAmount", serviceAmount)
+            put("discount_addition", discountAddition)
+            put("profit", profit)
+            put("payment_method", paymentMethod)
+        }
         val result = db.insert("Transactions", null, values)
         db.close(); return result != -1L
+    }
+
+    fun addTransaction(transaction: Transaction): Boolean =
+        addTransactionInternal(transaction, null)
+
+    fun addTransaction(transaction: Transaction, pendingRequestId: Int): Boolean =
+        addTransactionInternal(transaction, pendingRequestId)
+
+    private fun addTransactionInternal(transaction: Transaction, pendingRequestId: Int?): Boolean {
+        if (transaction.amount <= 0 || transaction.serviceAmount < 0 ||
+            (transaction.type == 1 && transaction.serviceAmount == 0) ||
+            !transaction.discountAddition.isFinite() || !transaction.profit.isFinite()
+        ) return false
+
+        val db = writableDatabase
+        db.beginTransaction()
+        return try {
+            val values = ContentValues().apply {
+                put("CustomerName", transaction.customerName)
+                put("Amount", transaction.amount)
+                put("Type", transaction.type)
+                put("Note", transaction.note)
+                put("Date", transaction.date)
+                put("ServiceType", transaction.serviceType)
+                put("ServiceAmount", transaction.serviceAmount)
+                put("discount_addition", transaction.discountAddition)
+                put("profit", transaction.profit)
+                put("payment_method", transaction.paymentMethod)
+            }
+            if (db.insert("Transactions", null, values) == -1L) return false
+            if (pendingRequestId != null &&
+                db.delete("PendingRequests", "ID=?", arrayOf(pendingRequestId.toString())) != 1
+            ) return false
+            db.setTransactionSuccessful()
+            true
+        } finally {
+            db.endTransaction()
+            db.close()
+        }
     }
 
     fun updateTransaction(
@@ -433,16 +520,17 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
             if (!exists) return false
 
             if (type == 1 && serviceType.isNotBlank()) {
-                val purchased = db.rawQuery(
-                    "SELECT COALESCE(SUM(Amount), 0) FROM CompanyPurchases WHERE CompanyName=?",
+                val oldServiceAmount = db.rawQuery(
+                    "SELECT ServiceAmount FROM Transactions WHERE ID=?",
+                    arrayOf(id.toString())
+                ).use { cursor -> if (cursor.moveToFirst()) cursor.getInt(0) else 0 }
+                val companyId = db.rawQuery(
+                    "SELECT ID FROM Companies WHERE Name=? ORDER BY ID ASC LIMIT 1",
                     arrayOf(serviceType)
-                ).use { if (it.moveToFirst()) it.getLong(0) else 0L }
-                val soldElsewhere = db.rawQuery(
-                    "SELECT COALESCE(SUM(ServiceAmount), 0) FROM Transactions WHERE ServiceType=? AND Type=1 AND ID<>?",
-                    arrayOf(serviceType, id.toString())
-                ).use { if (it.moveToFirst()) it.getLong(0) else 0L }
-                val available = purchased - soldElsewhere
-                if (normalizedServiceAmount.toLong() > available) return false
+                ).use { cursor -> if (cursor.moveToFirst()) cursor.getInt(0) else 0 }
+                val currentAvailable =
+                    getCompanyAvailableBalance(db, companyId, serviceType) + oldServiceAmount
+                if (normalizedServiceAmount > currentAvailable) return false
             }
 
             val values = ContentValues().apply {
@@ -466,11 +554,17 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         val list = ArrayList<Transaction>(); val db = this.readableDatabase; val cursor = db.rawQuery("SELECT * FROM Transactions ORDER BY ID DESC", null)
         val stIdx = cursor.getColumnIndex("ServiceType")
         val saIdx = cursor.getColumnIndex("ServiceAmount")
+        val discountAdditionIdx = cursor.getColumnIndex("discount_addition")
+        val profitIdx = cursor.getColumnIndex("profit")
+        val paymentMethodIdx = cursor.getColumnIndex("payment_method")
         cursor.use {
             if (it.moveToFirst()) do {
                 val st = if (stIdx != -1 && !it.isNull(stIdx)) it.getString(stIdx) else ""
                 val sa = if (saIdx != -1 && !it.isNull(saIdx)) it.getInt(saIdx) else 0
-                list.add(Transaction(it.getInt(0), it.getString(1), it.getInt(2), it.getInt(3), it.getString(4), it.getString(5), st, sa))
+                val discountAddition = if (discountAdditionIdx != -1 && !it.isNull(discountAdditionIdx)) it.getDouble(discountAdditionIdx) else 0.0
+                val profit = if (profitIdx != -1 && !it.isNull(profitIdx)) it.getDouble(profitIdx) else 0.0
+                val paymentMethod = if (paymentMethodIdx != -1 && !it.isNull(paymentMethodIdx)) it.getInt(paymentMethodIdx) else 0
+                list.add(Transaction(it.getInt(0), it.getString(1), it.getInt(2), it.getInt(3), it.getString(4), it.getString(5), st, sa, discountAddition, profit, paymentMethod))
             } while (it.moveToNext())
         }
         db.close(); return list
@@ -480,57 +574,69 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         cursor.use { if (it.moveToFirst() && !it.isNull(0)) total = it.getLong(0) }
         db.close(); return total
     }
-    fun getCustomerBalance(customerName: String): Long {
-        var total = 0L; val db = this.readableDatabase; val cursor = db.rawQuery("SELECT SUM(CASE WHEN Type = 1 THEN Amount ELSE -Amount END) FROM Transactions WHERE CustomerName = ?", arrayOf(customerName))
-        cursor.use { if (it.moveToFirst() && !it.isNull(0)) total = it.getLong(0) }
+    fun getCustomerBalance(customerName: String): Double {
+        var total = 0.0
+        val db = readableDatabase
+        db.rawQuery(
+            "SELECT COALESCE((SELECT initial_debt FROM Customers WHERE Name=?), 0) + " +
+                "COALESCE((SELECT SUM(CASE WHEN Type = 1 THEN Amount ELSE -Amount END) FROM Transactions WHERE CustomerName=?), 0)",
+            arrayOf(customerName, customerName)
+        ).use { cursor ->
+            if (cursor.moveToFirst()) total = cursor.getDouble(0)
+        }
         db.close(); return total
     }
 
     // --- Pending Requests ---
     fun addPending(customerName: String, network: String, amount: Int, price: Int, date: String, serviceType: String = "", serviceAmount: Int = amount): Boolean {
         if (amount <= 0 || price <= 0 || serviceAmount <= 0) return false
-        val db = this.writableDatabase
-        val values = ContentValues().apply { put("CustomerName", customerName); put("Network", network); put("Amount", amount); put("Price", price); put("Date", date); put("ServiceType", serviceType); put("ServiceAmount", serviceAmount) }
-        val result = db.insert("PendingRequests", null, values)
-        db.close(); return result != -1L
+        return addPendingRequest(
+            PendingRequest(
+                id = 0,
+                customerName = customerName,
+                network = network,
+                amount = amount,
+                price = price,
+                date = date,
+                serviceType = serviceType,
+                serviceAmount = serviceAmount
+            )
+        ) != -1L
     }
-    fun completePendingRequest(id: Int, customerName: String, transactionAmount: Int, note: String, date: String, serviceType: String, serviceAmount: Int): Boolean {
-        if (transactionAmount <= 0 || serviceAmount <= 0) return false
+    fun addPendingRequest(request: PendingRequest): Long {
         val db = this.writableDatabase
-        db.beginTransaction()
-        try {
-            val values = ContentValues().apply {
-                put("CustomerName", customerName)
-                put("Amount", transactionAmount)
-                put("Type", 1)
-                put("Note", note)
-                put("Date", date)
-                put("ServiceType", serviceType)
-                put("ServiceAmount", serviceAmount)
-            }
-            if (db.insert("Transactions", null, values) == -1L) return false
-            if (db.delete("PendingRequests", "ID=?", arrayOf(id.toString())) != 1) return false
-            db.setTransactionSuccessful()
-            return true
+        val values = ContentValues().apply {
+            put("CustomerName", request.customerName)
+            put("Network", request.network)
+            put("Amount", request.amount)
+            put("Price", request.price)
+            put("Date", request.date)
+            put("ServiceType", request.serviceType)
+            put("ServiceAmount", request.serviceAmount)
+            put("due_date", request.dueDate)
+        }
+        return try {
+            db.insert("PendingRequests", null, values)
         } finally {
-            db.endTransaction()
             db.close()
         }
     }
     fun deletePending(id: Int): Boolean { val db = this.writableDatabase; val r = db.delete("PendingRequests", "ID=?", arrayOf(id.toString())); db.close(); return r > 0 }
-    fun getAllPending(): ArrayList<PendingRequest> {
-        val list = ArrayList<PendingRequest>(); val db = this.readableDatabase; val cursor = db.rawQuery("SELECT * FROM PendingRequests ORDER BY ID ASC", null)
+    fun getAllPendingRequests(): ArrayList<PendingRequest> {
+        val list = ArrayList<PendingRequest>(); val db = this.readableDatabase; val cursor = db.rawQuery("SELECT * FROM PendingRequests ORDER BY Date ASC", null)
         val stIdx = cursor.getColumnIndex("ServiceType")
         val serviceAmountIdx = cursor.getColumnIndex("ServiceAmount")
         cursor.use {
             if (it.moveToFirst()) do {
                 val st = if (stIdx != -1 && !it.isNull(stIdx)) it.getString(stIdx) else ""
                 val serviceAmount = if (serviceAmountIdx != -1 && !it.isNull(serviceAmountIdx)) it.getInt(serviceAmountIdx) else it.getInt(3)
-                list.add(PendingRequest(it.getInt(0), it.getString(1), it.getString(2), it.getInt(3), it.getInt(4), it.getString(5), st, serviceAmount))
+                val dueDate = it.getString(it.getColumnIndexOrThrow("due_date")) ?: ""
+                list.add(PendingRequest(it.getInt(0), it.getString(1), it.getString(2), it.getInt(3), it.getInt(4), it.getString(5), st, serviceAmount, dueDate))
             } while (it.moveToNext())
         }
         db.close(); return list
     }
+    fun getAllPending(): ArrayList<PendingRequest> = getAllPendingRequests()
 
     // --- Companies (Purchases & Payments) ---
     fun addCompanyPurchase(name: String, amount: Int, cost: Int, note: String, date: String): Boolean {
@@ -598,6 +704,80 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         }
         return entries
     }
+
+    fun getOfficialReport(
+        officialId: Int,
+        fromDate: String,
+        toDate: String,
+        includePurchases: Boolean,
+        includePayments: Boolean
+    ): List<OfficialReportEntry> {
+        val db = readableDatabase
+        val entries = ArrayList<OfficialReportEntry>()
+        if (!includePurchases && !includePayments) {
+            db.close()
+            return entries
+        }
+
+        val dateFilter = buildString {
+            if (fromDate.isNotEmpty()) append(" AND substr(Date, 1, 10) >= ?")
+            if (toDate.isNotEmpty()) append(" AND substr(Date, 1, 10) <= ?")
+        }
+        val queries = ArrayList<String>()
+        val args = ArrayList<String>()
+
+        fun appendArgs() {
+            args.add(officialId.toString())
+            if (fromDate.isNotEmpty()) args.add(fromDate)
+            if (toDate.isNotEmpty()) args.add(toDate)
+        }
+
+        if (includePurchases) {
+            queries.add(
+                "SELECT cp.ID, c.Name AS CompanyName, 'أرصدة شحن' AS Type, " +
+                    "cp.Cost AS Amount, cp.Amount AS Quantity, cp.Date, cp.Note " +
+                    "FROM CompanyPurchases cp INNER JOIN Companies c ON c.Name=cp.CompanyName " +
+                    "WHERE c.OfficialID=?$dateFilter"
+            )
+            appendArgs()
+        }
+        if (includePayments) {
+            queries.add(
+                "SELECT pm.ID, c.Name AS CompanyName, 'دفعات مالية' AS Type, " +
+                    "pm.PaidAmount AS Amount, 0 AS Quantity, pm.Date, pm.Note " +
+                    "FROM CompanyPayments pm INNER JOIN Companies c ON c.Name=pm.CompanyName " +
+                    "WHERE c.OfficialID=?$dateFilter"
+            )
+            appendArgs()
+        }
+
+        try {
+            db.rawQuery(
+                "${queries.joinToString(" UNION ALL ")} ORDER BY Date DESC, ID DESC",
+                args.toTypedArray()
+            ).use { cursor ->
+                if (cursor.moveToFirst()) {
+                    do {
+                        entries.add(
+                            OfficialReportEntry(
+                                id = cursor.getInt(0),
+                                companyName = cursor.getString(1).orEmpty(),
+                                type = cursor.getString(2).orEmpty(),
+                                amount = cursor.getLong(3),
+                                quantity = cursor.getLong(4),
+                                date = cursor.getString(5).orEmpty(),
+                                note = cursor.getString(6).orEmpty()
+                            )
+                        )
+                    } while (cursor.moveToNext())
+                }
+            }
+        } finally {
+            db.close()
+        }
+        return entries
+    }
+
     fun getCompanyLog(companyName: String, filterType: String): List<CompanyLogEntry> {
         val db = readableDatabase
         val purchaseQuery =
@@ -639,17 +819,50 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         db.close()
         return entries
     }
-    fun getCompanyAvailableBalance(companyName: String): Long {
-        val db = this.readableDatabase
-        val cursor = db.rawQuery(
+    fun getCompanyAvailableBalance(companyId: Int, companyName: String): Double {
+        val db = readableDatabase
+        return try {
+            getCompanyAvailableBalance(db, companyId, companyName)
+        } finally {
+            db.close()
+        }
+    }
+
+    private fun getCompanyAvailableBalance(
+        db: SQLiteDatabase,
+        companyId: Int,
+        companyName: String
+    ): Double {
+        return db.rawQuery(
             "SELECT " +
+                "COALESCE((SELECT InitialBalance FROM Companies WHERE ID=? AND Name=?), 0) + " +
                 "COALESCE((SELECT SUM(Amount) FROM CompanyPurchases WHERE CompanyName=?), 0) - " +
-                "COALESCE((SELECT SUM(ServiceAmount) FROM Transactions WHERE ServiceType=? AND Type=1), 0)",
-            arrayOf(companyName, companyName)
-        )
-        val availableBalance = cursor.use { if (it.moveToFirst()) it.getLong(0) else 0L }
+                "COALESCE((SELECT SUM(ServiceAmount) FROM Transactions WHERE Type=1 AND ServiceType=?), 0) + " +
+                "CASE WHEN ?='شام كاش' THEN " +
+                "COALESCE((SELECT SUM(Amount) FROM Transactions WHERE Type=2 AND payment_method=2), 0) " +
+                "ELSE 0 END",
+            arrayOf(
+                companyId.toString(),
+                companyName,
+                companyName,
+                companyName,
+                companyName
+            )
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getDouble(0) else 0.0
+        }
+    }
+
+    fun getCompanyAvailableBalance(companyName: String): Double {
+        val db = readableDatabase
+        val companyId = db.rawQuery(
+            "SELECT ID FROM Companies WHERE Name=? ORDER BY ID ASC LIMIT 1",
+            arrayOf(companyName)
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getInt(0) else 0
+        }
         db.close()
-        return availableBalance
+        return getCompanyAvailableBalance(companyId, companyName)
     }
     fun getCompanyFinancialDebt(companyName: String): Long {
         var cost = 0L
@@ -662,6 +875,43 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         db.close()
         return cost - paid
     }
+
+    fun getOfficialDebt(officialId: Int): Double {
+        val db = readableDatabase
+        val query = """
+            SELECT
+                COALESCE((
+                    SELECT SUM(cp.Cost)
+                    FROM CompanyPurchases cp
+                    INNER JOIN Companies c ON c.Name = cp.CompanyName
+                    WHERE c.OfficialID = ?
+                ), 0) -
+                COALESCE((
+                    SELECT SUM(pm.PaidAmount)
+                    FROM CompanyPayments pm
+                    INNER JOIN Companies c ON c.Name = pm.CompanyName
+                    WHERE c.OfficialID = ?
+                ), 0)
+        """.trimIndent()
+        val debt = db.rawQuery(query, arrayOf(officialId.toString(), officialId.toString())).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getDouble(0) else 0.0
+        }
+        db.close()
+        return debt
+    }
+
+    fun getCompanyProfit(companyName: String): Double {
+        val db = readableDatabase
+        val profit = db.rawQuery(
+            "SELECT COALESCE(SUM(profit), 0) FROM Transactions WHERE ServiceType=? AND Type=1",
+            arrayOf(companyName)
+        ).use { cursor ->
+            if (cursor.moveToFirst()) cursor.getDouble(0) else 0.0
+        }
+        db.close()
+        return profit
+    }
+
     fun getCompanySalesReport(companyName: String, fromDate: String, toDate: String): Pair<Long, Long> {
         var totalCredit = 0L
         var totalFinancial = 0L

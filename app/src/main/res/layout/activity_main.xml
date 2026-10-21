@@ -12,10 +12,10 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
                         <TextView style="@style/SectionLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/choose_customer" />
                         <AutoCompleteTextView style="@style/FieldText" android:id="@+id/input_transfer_customer" android:layout_width="match_parent" android:layout_height="58dp" android:background="@drawable/bg_field" android:drawableStart="@drawable/ic_user" android:drawablePadding="12dp" android:hint="@string/customer_name" android:paddingStart="16dp" android:paddingEnd="16dp" android:textColorHint="@color/text_secondary" android:completionThreshold="1" android:gravity="right|center_vertical" android:textDirection="rtl" />
-                        <TextView style="@style/SectionLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/service_type" android:layout_marginTop="18dp" />
+                        <TextView style="@style/SectionLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="الشركة" android:layout_marginTop="18dp" />
                         <FrameLayout android:layout_width="match_parent" android:layout_height="58dp" android:layout_marginBottom="12dp">
                             <Spinner android:id="@+id/spinner_service_type" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/bg_field" android:popupBackground="@color/background" android:paddingStart="48dp" android:paddingEnd="16dp" android:textDirection="rtl" />
-                            <ImageView android:layout_width="25dp" android:layout_height="25dp" android:layout_gravity="start|center_vertical" android:layout_marginStart="16dp" android:contentDescription="أيقونة الخدمة" android:src="@drawable/ic_service" />
+                            <ImageView android:layout_width="25dp" android:layout_height="25dp" android:layout_gravity="start|center_vertical" android:layout_marginStart="16dp" android:contentDescription="أيقونة الشركة" android:src="@drawable/ic_service" />
                         </FrameLayout>
                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layoutDirection="rtl">
                             <EditText style="@style/FieldText" android:id="@+id/input_transfer_amount" android:layout_width="0dp" android:layout_weight="1" android:layout_height="58dp" android:background="@drawable/bg_field" android:drawableStart="@drawable/ic_wallet" android:drawablePadding="10dp" android:inputType="number" android:hint="@string/balance" android:paddingStart="12dp" android:paddingEnd="12dp" android:textColorHint="@color/text_secondary" android:layout_marginEnd="8dp" android:gravity="right|center_vertical" android:textDirection="rtl" />
@@ -43,7 +43,8 @@
                     <TextView style="@style/SectionLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="بيانات الزبون" />
                     <EditText style="@style/AppField" android:id="@+id/input_cust_name" android:layout_width="match_parent" android:hint="اسم الزبون" android:drawableStart="@drawable/ic_user" android:layout_marginBottom="12dp" />
                     <EditText style="@style/AppField" android:id="@+id/input_cust_syriatel" android:layout_width="match_parent" android:inputType="phone" android:hint="رقم Syriatel" android:layout_marginBottom="12dp" />
-                    <EditText style="@style/AppField" android:id="@+id/input_cust_mtn" android:layout_width="match_parent" android:inputType="phone" android:hint="رقم MTN" />
+                    <EditText style="@style/AppField" android:id="@+id/input_cust_mtn" android:layout_width="match_parent" android:inputType="phone" android:hint="رقم MTN" android:layout_marginBottom="12dp" />
+                    <EditText style="@style/AppField" android:id="@+id/input_initial_debt" android:layout_width="match_parent" android:background="@drawable/bg_field" android:inputType="numberDecimal" android:hint="الدين الابتدائي (الرصيد المطلوب منه مسبقاً)" />
                 </LinearLayout>
                 <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_save_customer" style="@style/AppButton.Primary" android:layout_width="match_parent" android:text="حفظ الزبون" android:layout_marginBottom="16dp" />
                 <LinearLayout android:layout_width="match_parent" android:layout_height="58dp" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="12dp">
@@ -108,6 +109,11 @@
         </androidx.core.widget.NestedScrollView>
         <androidx.core.widget.NestedScrollView android:id="@+id/layout_companies" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" android:fillViewport="true" android:background="@android:color/transparent">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingStart="20dp" android:paddingTop="12dp" android:paddingEnd="20dp" android:paddingBottom="24dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="12dp" android:layoutDirection="rtl">
+                    <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_manage_officials" style="@style/AppButton.Outline" android:layout_width="0dp" android:layout_weight="1" android:layout_marginEnd="6dp" android:text="إدارة المسؤولين" android:background="@drawable/bg_button_outline" android:textColor="@color/neon_cyan_bright" />
+                    <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_add_company" style="@style/AppButton.Primary" android:layout_width="0dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="إضافة شركة" />
+                </LinearLayout>
+                <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_official_report" style="@style/AppButton.Outline" android:layout_width="match_parent" android:layout_marginBottom="12dp" android:text="تصدير كشف مسؤول" />
                 <androidx.recyclerview.widget.RecyclerView android:id="@+id/recycler_companies" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false" android:clipToPadding="false" android:paddingBottom="8dp" />
                 <LinearLayout android:id="@+id/btn_toggle_company_log" android:layout_width="match_parent" android:layout_height="58dp" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="16dp" android:paddingEnd="16dp" android:layout_marginTop="8dp" android:background="@drawable/bg_button_outline" android:clickable="true" android:focusable="true">
                     <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="سجل عمليات الشركات" android:textColor="@color/text_primary" android:textSize="16sp" android:textStyle="bold" />
@@ -121,31 +127,18 @@
                 </LinearLayout>
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
+        <ScrollView android:id="@+id/layout_cashbox" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" android:fillViewport="true" android:background="@android:color/transparent">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingStart="20dp" android:paddingTop="12dp" android:paddingEnd="20dp" android:paddingBottom="24dp">
+                <TextView android:id="@+id/tv_total_cash" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="إجمالي النقد والأرباح: 0 ل.س" android:textColor="@color/neon_cyan_bright" android:textSize="24sp" android:textStyle="bold" android:gravity="center" android:background="@drawable/bg_panel" android:padding="20dp" android:layout_marginBottom="16dp" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:weightSum="2" android:layout_marginBottom="16dp">
+                    <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_add_expense" style="@style/AppButton.Outline" android:layout_width="0dp" android:layout_weight="1" android:text="إضافة مصروف" android:layout_marginEnd="4dp" />
+                    <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_add_capital" style="@style/AppButton.Primary" android:layout_width="0dp" android:layout_weight="1" android:text="إيداع رأس مال" android:layout_marginStart="4dp" />
+                </LinearLayout>
+                <androidx.recyclerview.widget.RecyclerView android:id="@+id/rv_cash_transactions" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false" android:clipToPadding="false" android:paddingBottom="8dp" />
+            </LinearLayout>
+        </ScrollView>
         <ScrollView android:id="@+id/layout_settings" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" android:background="@android:color/transparent">
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingStart="20dp" android:paddingTop="12dp" android:paddingEnd="20dp" android:paddingBottom="24dp">
-                <TextView style="@style/SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="المظهر" android:layout_marginBottom="8dp" />
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:padding="16dp" android:gravity="center_vertical" android:background="@drawable/bg_panel" android:layout_marginBottom="20dp">
-                    <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="تفعيل الوضع الليلي" android:textColor="@color/text_primary" android:textSize="16sp" />
-                    <Switch android:id="@+id/switch_dark_mode" android:layout_width="wrap_content" android:layout_height="wrap_content" android:thumbTint="@color/cyan" android:trackTint="@color/stroke" />
-                </LinearLayout>
-                <TextView style="@style/SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="إعدادات التحويل للشبكات" android:layout_marginBottom="12dp" />
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp" android:background="@drawable/bg_panel" android:layout_marginBottom="12dp">
-                    <TextView style="@style/SectionLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Syriatel" />
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="الرمز السري وكود التحويل. استخدم الكلمات: رقم، مبلغ، رمز" android:textSize="13sp" android:textColor="@color/text_secondary" android:layout_marginBottom="10dp" />
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layoutDirection="rtl">
-                        <EditText style="@style/AppField" android:id="@+id/input_settings_syr_pin" android:layout_width="0dp" android:layout_weight="1" android:inputType="numberPassword" android:hint="الرمز" android:layout_marginEnd="8dp" />
-                        <EditText style="@style/AppField" android:id="@+id/input_settings_syr_code" android:layout_width="0dp" android:layout_weight="2" android:inputType="text" android:hint="*150*رقم*مبلغ*رمز#" android:gravity="center_vertical|start" android:textDirection="ltr" />
-                    </LinearLayout>
-                </LinearLayout>
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp" android:background="@drawable/bg_panel" android:layout_marginBottom="16dp">
-                    <TextView style="@style/SectionLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="MTN" />
-                    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="الرمز السري وكود التحويل. استخدم الكلمات: رقم، مبلغ، رمز" android:textSize="13sp" android:textColor="@color/text_secondary" android:layout_marginBottom="10dp" />
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layoutDirection="rtl">
-                        <EditText style="@style/AppField" android:id="@+id/input_settings_mtn_pin" android:layout_width="0dp" android:layout_weight="1" android:inputType="numberPassword" android:hint="الرمز" android:layout_marginEnd="8dp" />
-                        <EditText style="@style/AppField" android:id="@+id/input_settings_mtn_code" android:layout_width="0dp" android:layout_weight="2" android:inputType="text" android:hint="*150*رقم*مبلغ*رمز#" android:gravity="center_vertical|start" android:textDirection="ltr" />
-                    </LinearLayout>
-                </LinearLayout>
-                <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_manage_categories" style="@style/AppButton.Outline" android:layout_width="match_parent" android:text="إدارة الفئات والأسعار" android:layout_marginBottom="20dp" />
                 <TextView style="@style/SectionTitle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="النسخ الاحتياطي" android:layout_marginBottom="12dp" />
                 <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_share_backup" style="@style/AppButton.Primary" android:layout_width="match_parent" android:text="مشاركة النسخة الاحتياطية" android:layout_marginBottom="12dp" />
                 <androidx.appcompat.widget.AppCompatButton android:id="@+id/btn_restore_local_backup" style="@style/AppButton.Outline" android:layout_width="match_parent" android:text="استعادة من النسخة المحفوظة" android:layout_marginBottom="12dp" />
@@ -175,6 +168,10 @@
         <LinearLayout android:id="@+id/nav_settings" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:background="@drawable/bg_nav_item_active" android:clickable="true" android:focusable="true">
             <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_settings" android:tint="@color/nav_item_colors" android:duplicateParentState="true" />
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="إعدادات" android:textSize="12sp" android:textStyle="bold" android:textColor="@color/nav_item_colors" android:duplicateParentState="true" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/nav_cashbox" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:background="@drawable/bg_nav_item_active" android:clickable="true" android:focusable="true">
+            <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@drawable/ic_debt" android:tint="@color/nav_item_colors" android:duplicateParentState="true" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="الصندوق" android:textSize="12sp" android:textStyle="bold" android:textColor="@color/nav_item_colors" android:duplicateParentState="true" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>

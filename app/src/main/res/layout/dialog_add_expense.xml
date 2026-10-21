@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/bg_panel">
+
+    <TextView
+        android:id="@+id/tv_expense_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="إضافة مصروف جديد"
+        android:textColor="@color/neon_cyan_bright"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="16dp"/>
+
+    <EditText
+        android:id="@+id/input_expense_amount"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:background="@drawable/bg_field"
+        android:hint="المبلغ المستقطع"
+        android:inputType="numberDecimal"
+        android:textColorHint="#88ffffff"
+        android:textColor="@android:color/white"
+        android:paddingHorizontal="16dp"
+        android:layout_marginBottom="12dp"/>
+
+    <EditText
+        android:id="@+id/input_expense_note"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:background="@drawable/bg_field"
+        android:hint="البيان (مثال: أجور طريق، فاتورة...)"
+        android:textColorHint="#88ffffff"
+        android:textColor="@android:color/white"
+        android:paddingHorizontal="16dp"
+        android:layout_marginBottom="24dp"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="2">
+
+        <Button
+            android:id="@+id/btn_cancel_expense"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:text="إلغاء"
+            android:background="@drawable/bg_button_outline"
+            android:textColor="@color/neon_cyan_bright"
+            android:layout_marginEnd="8dp"/>
+
+        <Button
+            android:id="@+id/btn_save_expense"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:text="حفظ"
+            android:background="@drawable/bg_button_primary"
+            android:textColor="@android:color/white"
+            android:layout_marginStart="8dp"/>  
+    </LinearLayout>
+</LinearLayout>
