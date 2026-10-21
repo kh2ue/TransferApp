@@ -36,7 +36,7 @@ data class PendingRequest(
     val serviceAmount: Int,
     val dueDate: String = ""
 )
-data class CompanyPurchase(val id: Int, val companyName: String, val amount: Int, val cost: Int, val date: String, val note: String)
+data class CompanyPurchase(val id: Int, val companyName: String, val amount: Int, val cost: Double, val date: String, val note: String)
 data class CompanyPayment(val id: Int, val companyName: String, val paidAmount: Int, val date: String, val note: String)
 data class Official(val id: Int, val name: String)
 data class Company(
@@ -48,13 +48,13 @@ data class Company(
     val sellPrice: Double
 )
 data class CashTransaction(val id: Int, val type: Int, val amount: Double, val note: String, val date: String)
-data class CompanyLogEntry(val id: Int, val companyName: String, val type: String, val amount: Long, val quantity: Long, val date: String, val note: String)
-data class CompanyReportEntry(val id: Int, val type: String, val amount: Long, val quantity: Long, val date: String, val note: String)
+data class CompanyLogEntry(val id: Int, val companyName: String, val type: String, val amount: Double, val quantity: Long, val date: String, val note: String)
+data class CompanyReportEntry(val id: Int, val type: String, val amount: Double, val quantity: Long, val date: String, val note: String)
 data class OfficialReportEntry(
     val id: Int,
     val companyName: String,
     val type: String,
-    val amount: Long,
+    val amount: Double,
     val quantity: Long,
     val date: String,
     val note: String
@@ -85,7 +85,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         db.execSQL("CREATE TABLE Customers (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, PhoneSyriatel TEXT, PhoneMtn TEXT, initial_debt REAL DEFAULT 0.0)")
         db.execSQL("CREATE TABLE Transactions (ID INTEGER PRIMARY KEY AUTOINCREMENT, CustomerName TEXT, Amount INTEGER, Type INTEGER, Note TEXT, Date TEXT, ServiceType TEXT, ServiceAmount INTEGER DEFAULT 0, discount_addition REAL DEFAULT 0.0, profit REAL DEFAULT 0.0, payment_method INTEGER DEFAULT 0)")
         db.execSQL("CREATE TABLE PendingRequests (ID INTEGER PRIMARY KEY AUTOINCREMENT, CustomerName TEXT, Network TEXT, Amount INTEGER, Price INTEGER, Date TEXT, ServiceType TEXT, ServiceAmount INTEGER DEFAULT 0, due_date TEXT DEFAULT '')")
-        db.execSQL("CREATE TABLE CompanyPurchases (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, Amount INTEGER, Cost INTEGER, Date TEXT, Note TEXT)")
+        db.execSQL("CREATE TABLE CompanyPurchases (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, Amount INTEGER, Cost REAL, Date TEXT, Note TEXT)")
         db.execSQL("CREATE TABLE CompanyPayments (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, PaidAmount INTEGER, Date TEXT, Note TEXT)")
         db.execSQL("CREATE TABLE IF NOT EXISTS Officials (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT)")
         db.execSQL("CREATE TABLE IF NOT EXISTS Companies (ID INTEGER PRIMARY KEY AUTOINCREMENT, Name TEXT, OfficialID INTEGER, InitialBalance REAL DEFAULT 0.0, BuyPrice REAL DEFAULT 0.0, SellPrice REAL DEFAULT 0.0)")
@@ -98,7 +98,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
             try { db.execSQL("ALTER TABLE PendingRequests ADD COLUMN ServiceType TEXT DEFAULT ''") } catch (e: Exception) {}
         }
         if (oldVersion < 10) {
-            db.execSQL("CREATE TABLE IF NOT EXISTS CompanyPurchases (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, Amount INTEGER, Cost INTEGER, Date TEXT, Note TEXT)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS CompanyPurchases (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, Amount INTEGER, Cost REAL, Date TEXT, Note TEXT)")
             db.execSQL("CREATE TABLE IF NOT EXISTS CompanyPayments (ID INTEGER PRIMARY KEY AUTOINCREMENT, CompanyName TEXT, PaidAmount INTEGER, Date TEXT, Note TEXT)")
         }
         if (oldVersion < 11) {
@@ -639,8 +639,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
     fun getAllPending(): ArrayList<PendingRequest> = getAllPendingRequests()
 
     // --- Companies (Purchases & Payments) ---
-    fun addCompanyPurchase(name: String, amount: Int, cost: Int, note: String, date: String): Boolean {
-        if (amount <= 0 || cost <= 0) return false
+    fun addCompanyPurchase(name: String, amount: Int, cost: Double, note: String, date: String): Boolean {
+        if (amount <= 0 || !cost.isFinite() || cost <= 0.0) return false
         val db = this.writableDatabase
         val values = ContentValues().apply { put("CompanyName", name); put("Amount", amount); put("Cost", cost); put("Date", date); put("Note", note) }
         val result = db.insert("CompanyPurchases", null, values)
@@ -691,7 +691,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
                         CompanyReportEntry(
                             it.getInt(0),
                             it.getString(1) ?: "",
-                            it.getLong(2),
+                            it.getDouble(2),
                             it.getLong(3),
                             it.getString(4) ?: "",
                             it.getString(5) ?: ""
@@ -763,7 +763,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
                                 id = cursor.getInt(0),
                                 companyName = cursor.getString(1).orEmpty(),
                                 type = cursor.getString(2).orEmpty(),
-                                amount = cursor.getLong(3),
+                                amount = cursor.getDouble(3),
                                 quantity = cursor.getLong(4),
                                 date = cursor.getString(5).orEmpty(),
                                 note = cursor.getString(6).orEmpty()
@@ -808,7 +808,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
                         it.getInt(idIndex),
                         it.getString(companyIndex) ?: "",
                         it.getString(typeIndex) ?: "",
-                        it.getLong(amountIndex),
+                        it.getDouble(amountIndex),
                         it.getLong(quantityIndex),
                         it.getString(dateIndex) ?: "",
                         it.getString(noteIndex) ?: ""
@@ -864,14 +864,14 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, "TransferApp.
         db.close()
         return getCompanyAvailableBalance(companyId, companyName)
     }
-    fun getCompanyFinancialDebt(companyName: String): Long {
-        var cost = 0L
-        var paid = 0L
+    fun getCompanyFinancialDebt(companyName: String): Double {
+        var cost = 0.0
+        var paid = 0.0
         val db = this.readableDatabase
         var cursor = db.rawQuery("SELECT SUM(Cost) FROM CompanyPurchases WHERE CompanyName=?", arrayOf(companyName))
-        cursor.use { if (it.moveToFirst() && !it.isNull(0)) cost = it.getLong(0) }
+        cursor.use { if (it.moveToFirst() && !it.isNull(0)) cost = it.getDouble(0) }
         cursor = db.rawQuery("SELECT SUM(PaidAmount) FROM CompanyPayments WHERE CompanyName=?", arrayOf(companyName))
-        cursor.use { if (it.moveToFirst() && !it.isNull(0)) paid = it.getLong(0) }
+        cursor.use { if (it.moveToFirst() && !it.isNull(0)) paid = it.getDouble(0) }
         db.close()
         return cost - paid
     }

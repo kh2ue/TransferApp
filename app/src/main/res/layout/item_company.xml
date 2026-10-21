@@ -58,6 +58,16 @@
                     android:textColor="@color/colorSuccess"
                     android:textSize="18sp"
                     android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_company_profit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="الأرباح: 0.0"
+                    android:textColor="@color/neon_cyan_bright"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
             <View

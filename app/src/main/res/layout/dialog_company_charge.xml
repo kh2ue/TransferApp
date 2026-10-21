@@ -24,15 +24,6 @@
         android:inputType="number" />
 
     <EditText
-        android:id="@+id/input_charge_cost"
-        style="@style/AppField"
-        android:layout_width="match_parent"
-        android:layout_marginBottom="12dp"
-        android:drawableStart="@drawable/ic_tag"
-        android:hint="التكلفة"
-        android:inputType="number" />
-
-    <EditText
         android:id="@+id/input_charge_note"
         style="@style/AppField"
         android:layout_width="match_parent"

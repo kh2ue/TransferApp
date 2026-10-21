@@ -1017,19 +1017,18 @@ class MainActivity : AppCompatActivity() {
         radioGroupAdjustment.clearCheck()
     }
 
-    fun showCompanyChargeDialog(compName: String, onComplete: () -> Unit) {
+    fun showCompanyChargeDialog(company: Company, onComplete: () -> Unit) {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_company_charge, null)
         val dialog = AlertDialog.Builder(this).setView(view).create()
-        view.findViewById<TextView>(R.id.tv_charge_title).text = "شحن رصيد: " + compName
+        view.findViewById<TextView>(R.id.tv_charge_title).text = "شحن رصيد: " + company.name
         val inpAmount = view.findViewById<EditText>(R.id.input_charge_amount)
-        val inpCost = view.findViewById<EditText>(R.id.input_charge_cost)
         val inpNote = view.findViewById<EditText>(R.id.input_charge_note)
         view.findViewById<Button>(R.id.btn_save_charge).setOnClickListener {
             val amount = inpAmount.text.toString().toIntOrNull() ?: 0
-            val cost = inpCost.text.toString().toIntOrNull() ?: 0
-            if (amount <= 0 || cost <= 0) {
-                Toast.makeText(this, "أدخل كمية وتكلفة صحيحتين أكبر من صفر", Toast.LENGTH_SHORT).show()
-            } else if (dbHelper.addCompanyPurchase(compName, amount, cost, inpNote.text.toString().trim(), getCurrentDateString())) {
+            val cost = amount * company.buyPrice
+            if (amount <= 0 || !cost.isFinite() || cost <= 0.0) {
+                Toast.makeText(this, "تحقق من كمية الشحن وسعر الشراء للشركة", Toast.LENGTH_SHORT).show()
+            } else if (dbHelper.addCompanyPurchase(company.name, amount, cost, inpNote.text.toString().trim(), getCurrentDateString())) {
                 Toast.makeText(this, "تم الشحن بنجاح", Toast.LENGTH_SHORT).show()
                 onComplete()
                 refreshCompanyLog()
@@ -1193,10 +1192,10 @@ class MainActivity : AppCompatActivity() {
             }
 
             drawPageHeader()
-            var purchaseCost = 0L
+            var purchaseCost = 0.0
             var purchaseQuantity = 0L
-            var payments = 0L
-            var salesValue = 0L
+            var payments = 0.0
+            var salesValue = 0.0
             var salesQuantity = 0L
             for (entry in entries) {
                 val amountLines = when (entry.type) {
@@ -1415,17 +1414,17 @@ class MainActivity : AppCompatActivity() {
             }
 
             drawPageHeader()
-            var purchaseCost = 0L
+            var purchaseCost = 0.0
             var purchaseQuantity = 0L
-            var paymentsTotal = 0L
-            val companyTotals = linkedMapOf<String, Pair<Long, Long>>()
+            var paymentsTotal = 0.0
+            val companyTotals = linkedMapOf<String, Pair<Double, Double>>()
 
             for (entry in entries) {
                 val amountLines = when (entry.type) {
                     "أرصدة شحن" -> {
                         purchaseCost += entry.amount
                         purchaseQuantity += entry.quantity
-                        val previous = companyTotals[entry.companyName] ?: (0L to 0L)
+                        val previous = companyTotals[entry.companyName] ?: (0.0 to 0.0)
                         companyTotals[entry.companyName] =
                             (previous.first + entry.amount) to previous.second
                         listOf(
@@ -1435,7 +1434,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     else -> {
                         paymentsTotal += entry.amount
-                        val previous = companyTotals[entry.companyName] ?: (0L to 0L)
+                        val previous = companyTotals[entry.companyName] ?: (0.0 to 0.0)
                         companyTotals[entry.companyName] =
                             previous.first to (previous.second + entry.amount)
                         listOf("المدفوع: ${numberFormat.format(entry.amount)} ل.س")
@@ -2055,6 +2054,7 @@ class CompanyAdapter(
         val btnToggle = view.findViewById<Button>(R.id.btn_comp_toggle)
         val layoutDetails = view.findViewById<View>(R.id.layout_comp_details)
         val tvBalance = view.findViewById<TextView>(R.id.tv_comp_balance)
+        val tvProfit = view.findViewById<TextView>(R.id.tv_company_profit)
         val tvDebt = view.findViewById<TextView>(R.id.tv_comp_debt)
         val btnCharge = view.findViewById<Button>(R.id.btn_comp_charge)
         val btnPay = view.findViewById<Button>(R.id.btn_comp_pay)
@@ -2072,7 +2072,9 @@ class CompanyAdapter(
         fun updateNumbers() {
             val avail = dbHelper.getCompanyAvailableBalance(comp.id, comp.name)
             val debt = dbHelper.getCompanyFinancialDebt(comp.name)
+            val profit = dbHelper.getCompanyProfit(comp.name)
             holder.tvBalance.text = NumberFormat.getNumberInstance(Locale.US).format(avail)
+            holder.tvProfit.text = "الأرباح: ${NumberFormat.getNumberInstance(Locale.US).format(profit)}"
             holder.tvDebt.text = NumberFormat.getNumberInstance(Locale.US).format(debt) + " ل.س"
         }
 
@@ -2089,7 +2091,7 @@ class CompanyAdapter(
             applyExpandedState()
         }
         holder.btnCharge.setOnClickListener {
-            if (context is MainActivity) context.showCompanyChargeDialog(comp.name) { updateNumbers() }
+            if (context is MainActivity) context.showCompanyChargeDialog(comp) { updateNumbers() }
         }
         holder.btnPay.setOnClickListener {
             if (context is MainActivity) context.showCompanyPayDialog(comp.name) { updateNumbers() }
