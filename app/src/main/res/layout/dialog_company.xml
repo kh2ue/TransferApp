@@ -23,7 +23,8 @@
         android:layout_marginBottom="12dp"
         android:background="@drawable/bg_field"
         android:hint="اسم الشركة"
-        android:inputType="textPersonName" />
+        android:inputType="textPersonName"
+        android:textDirection="rtl" />
 
     <Spinner
         android:id="@+id/spinner_official"
@@ -41,7 +42,8 @@
         android:layout_marginBottom="12dp"
         android:background="@drawable/bg_field"
         android:hint="الرصيد الابتدائي"
-        android:inputType="numberDecimal" />
+        android:inputType="numberDecimal"
+        android:textDirection="rtl" />
 
     <EditText
         android:id="@+id/input_buy_price"
@@ -50,7 +52,8 @@
         android:layout_marginBottom="12dp"
         android:background="@drawable/bg_field"
         android:hint="سعر شراء الوحدة"
-        android:inputType="numberDecimal" />
+        android:inputType="numberDecimal"
+        android:textDirection="rtl" />
 
     <EditText
         android:id="@+id/input_sell_price"
@@ -59,7 +62,8 @@
         android:layout_marginBottom="16dp"
         android:background="@drawable/bg_field"
         android:hint="سعر بيع الوحدة"
-        android:inputType="numberDecimal" />
+        android:inputType="numberDecimal"
+        android:textDirection="rtl" />
 
     <LinearLayout
         android:layout_width="match_parent"

@@ -96,10 +96,41 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:textColor="@color/colorDanger"
+                    android:textDirection="rtl"
                     android:textSize="18sp"
                     android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_comp_buy_price"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:text="سعر الشراء:"
+            android:textColor="@color/text_primary"
+            android:textDirection="rtl"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/tv_comp_sell_price"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:text="سعر البيع:"
+            android:textColor="@color/text_primary"
+            android:textDirection="rtl"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/tv_comp_initial_balance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:text="الرصيد الابتدائي:"
+            android:textColor="@color/text_primary"
+            android:textDirection="rtl"
+            android:textSize="15sp" />
 
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btn_comp_charge"

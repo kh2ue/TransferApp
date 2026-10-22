@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_panel"
+    android:layoutDirection="rtl"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:text="إدارة المسؤولين"
+        android:textColor="@color/neon_cyan_bright"
+        android:textDirection="rtl"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_officials"
+        android:layout_width="match_parent"
+        android:layout_height="280dp"
+        android:clipToPadding="false"
+        android:nestedScrollingEnabled="true" />
+
+    <TextView
+        android:id="@+id/tv_officials_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:padding="16dp"
+        android:text="لا يوجد مسؤولون"
+        android:textColor="@color/text_secondary"
+        android:textDirection="rtl"
+        android:visibility="gone" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_add_official"
+        style="@style/AppButton.Primary"
+        android:layout_width="match_parent"
+        android:layout_marginTop="12dp"
+        android:text="إضافة مسؤول" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/btn_close_officials"
+        style="@style/AppButton.Outline"
+        android:layout_width="match_parent"
+        android:layout_marginTop="8dp"
+        android:text="إغلاق" />
+</LinearLayout>

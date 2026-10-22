@@ -21,14 +21,16 @@
         android:layout_marginBottom="12dp"
         android:drawableStart="@drawable/ic_wallet"
         android:hint="المبلغ المدفوع للشركة"
-        android:inputType="number" />
+        android:inputType="number"
+        android:textDirection="rtl" />
 
     <EditText
         android:id="@+id/input_payment_note"
         style="@style/AppField"
         android:layout_width="match_parent"
         android:layout_marginBottom="16dp"
-        android:hint="ملاحظة" />
+        android:hint="ملاحظة"
+        android:textDirection="rtl" />
 
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/btn_save_payment"
